@@ -1,0 +1,12 @@
+{
+  "name": "giveth-commons-abc-contracts",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "./node_modules/.bin/truffle test",
+    "build": "./node_modules/.bin/truffle compile",
+    "deploy": "./node_modules/.bin/truffle migrate"
+  },
+  "dependencies": {
+    "truffle": "^5.0.12"
+  }
+}
