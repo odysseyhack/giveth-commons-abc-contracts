@@ -2,9 +2,10 @@ pragma solidity ^0.4.24;
 
 import "openzeppelin-eth/contracts/token/ERC20/ERC20.sol";
 import "zos-lib/contracts/Initializable.sol";
-
 import "./BondingCurveToken.sol";
 
+//TODO: time limit  (deadline of the hatch)
+// TODO: minimum contribution limit
 /**
  * @title Token Bonding Curve
  * @dev Token backed Bonding curve contract
@@ -88,6 +89,6 @@ contract ERC20BondingToken is Initializable, BondingCurveToken {
   }
 
   function poolBalance() public view returns(uint256) {
-    return reserveToken.balanceOf(this);
+      return reserveToken.balanceOf(this);
   }
 }

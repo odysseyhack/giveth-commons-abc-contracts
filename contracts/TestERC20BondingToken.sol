@@ -36,32 +36,39 @@ contract TestERC20BondingToken is ERC20BondingToken {
   }
 
   function mint(uint256 amount) public {
+    require(!isInHatchingPhase);
     _curvedMint(amount);
   }
 
   function burn(uint256 amount) public {
+    require(!isInHatchingPhase);
     _curvedBurn(amount);
   }
 
   function hatchContribute(uint256 value) public {
       require(isInHatchingPhase);
-      // we send the contribution first to this contract and after the hatch phase, we send it to the fundingpool
       uint256 contributed;
       if(raised < initialRaise) {
-          raised += value
-          //TODO: SafeMath
-          reserveToken.transferFrom(msg.sender, address(this), value);
+          contributed = value;
+          raised += contributed;
+          // we call the DAI contract and try to pull DAI to this contract. Reverts if there is no approval.
+          reserveToken.transferFrom(msg.sender, address(this), contributed);
       } else {
-          raised == initialRaise;
+          contributed = initialRaised - raised;
+          raised = initialRaise;
           isInHatchingPhase = false;
-          reserveToken.transferFrom(msg.sender, address(this), initialRaise - raised);
+          // we call the DAI contract and try to pull DAI to this contract. Reverts if there is no approval.
+          reserveToken.transferFrom(msg.sender, address(this), contributed);
           // once we reached the hatch phase, we allow the fundingPool to pull theta times the balance into their control. 1 - theta is reserve
           reserveToken.approve(fundingPool, reserveToken.balanceOf(address(this)) * (theta / DENOMINATOR));
       }
+      // we mint to our account. Theoretically, the price is increasing (up to P1), but since we are in the hatching phase, the actual price stays P0
+      uint256 amountToMint = calculateCurvedMintReturn(contributed);
+      _mint(address(this).balance, amountToMint);
       initialContributions[msg.sender].contributed += contributed;
   }
 
-  function fundsAllocated(uint value) {
+  function fundsAllocated(uint value) public {
       require(!isInHatchingPhase);
       require(msg.sender == fundingPool);
       //TODO: now, we unlock based on 1 / 1 proportion. This could also be another proportion: i.e. 100.000 funds spend => 50000 worth of funds unlocked
@@ -71,7 +78,7 @@ contract TestERC20BondingToken is ERC20BondingToken {
       }
   }
 
-  function claimTokens() {
+  function claimTokens() public {
       require(!isInHatchingPhase);
       require(initialContributions[msg.sender].contributed != 0);
       require(initialContributions[msg.sender].percentageTokenUnlocked < totalUnlocked);
@@ -82,6 +89,8 @@ contract TestERC20BondingToken is ERC20BondingToken {
       // toBeUnlocked = Percentage * totalAllocated
       uint256 toBeUnlocked = (initialContributions[msg.sender].contributed / initialRaise) * p0 *
           ((totalUnlocked - initialContributionRegistry[msg.sender.percentageUnlocked]) / DENOMINATOR);
-      reserveToken.increaseAllowance(msg.sender, toBeUnlocked);
-  }
+      // we burn the token previously minted to our account and mint tokens to the hatcher
+      _burn(balanceOf(address(this)), toBeUnlocked)
+      _mint(msg.sender, toBeUnlocked);
+    }
 }
