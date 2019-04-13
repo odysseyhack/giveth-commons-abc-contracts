@@ -7,9 +7,11 @@ let fundingPool // tbd
 let friction = 20000 // 2% in ppm
 let gasPrice = 15000000000 // 15gwei
 
-var ReserveTokenMock = artifacts.require("./node_modules/openzeppelin-eth/contracts/token/ERC20/ERC20Mintable.sol");
-var CommonsToken = artifacts.require("./CommonsToken.sol");
-var FundingPoolMock = artifacts.require("./FundingPoolMock");
+//could not find artifacts for node_modules/openzeppelin-eth/contracts/token/ERC20/ERC20Mintable from any sources
+
+var ReserveTokenMock = artifacts.require("./node_modules/openzeppelin-eth/contracts/token/ERC20/ERC20Mintable");
+var CommonsToken = artifacts.require("CommonsToken");
+var FundingPoolMock = artifacts.require("FundingPoolMock");
 
 module.exports = async function(deployer) {
   let fundingPool = await deployer.deploy(FundingPoolMock)

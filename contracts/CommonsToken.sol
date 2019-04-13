@@ -13,29 +13,61 @@ contract CommonsToken is ERC20BondingToken {
   uint256 public friction;
   bool public isInHatchingPhase;
 
-  // TODO: should we have this here?
+  uint256 public denominator = 1000000;
+
+  struct initialContributionRegistry {
+    uint256 contributed;
+    uint256 percentageTokenUnlocked;
+  }
+
+  mapping(address => initialContributionRegistry) initialContributions;
+
+  //TODO: define
   uint256 totalUnlocked;
 
+  // /**
+  //  * @dev initialize augmented bonding curve
+  //  * @param _reserveToken this is the token which is being allocated as a reserve pool + funding pool (xDai)
+  //  * @param reserveRatio get's used by the bancorFormula and is equal to the connectorWeight (CW).
+  //  *  The connectorWeight is related to Kappa as CW = 1 / (k+1).
+  //  *  Source:
+  //  *  https://medium.com/@billyrennekamp/converting-between-bancor-and-bonding-curve-price-formulas-9c11309062f5.
+  //  *  Note: 142857 ~> kappa = 6
+  //  * @param _theta this is the percentage (in ppm) of funds that gets allocated to the funding pool
+  //  * @param _p0 the price at which hatchers can buy into the Curve => the price in reservetoken (dai) per native token
+  //  * @param _initialRaise (initialRaise, d0, in DAI), the goal of the Hatch phase
+  //  * @param _fundingPool the address (organization, DAO, entity) to which we transfer theta times the contribution
+  //  *  during the hatching phase
+  //  * @param _friction fee (percentage in ppm) which is paid to the funding pool, every time a person calls curvedBurn
+  //  * @param _gasPrice mitigation against front-running attacks by forcing all users to pay the same gas price
+  //  */
   function initialize(
     address _reserveToken,
     uint32 _reserveRatio,
+    uint256 _gasPrice,
     uint256 _theta,
     uint256 _p0,
     uint256 _initialRaise,
     address _fundingPool,
-    uint256 _friction,
-    uint256 _gasPrice
+    uint256 _friction
   ) initializer public {
     ERC20BondingToken.initialize(
-      _reserveToken,
       _reserveRatio,
-      _theta,
-      _p0,
-      _initialRaise,
-      _fundingPool,
-      _friction,
-      _gasPrice
+      _gasPrice,
+      _reserveToken,
+      friction,
+      denominator,
+      _fundingPool
     );
+    require(theta <= denominator && theta >= 1, "Theta should be a percentage in ppm");
+    require(fundingPool != address(0));
+    require(_friction <= denominator, "Friction should be a percentage in ppm");
+    reserveToken = ERC20(_reserveToken);
+    theta = _theta;
+    p0 = _p0;
+    initialRaise = _initialRaise;
+    fundingPool = _fundingPool;
+    friction = _friction;
   }
 
   function mint(uint256 amount) public {
