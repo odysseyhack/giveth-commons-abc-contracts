@@ -4,6 +4,8 @@ import "./BondingCurveToken.sol";
 
 contract CommonsToken is BondingCurveToken {
 
+  event LogVal(uint256 val);
+
   // --- STRUCT DELCARATIONS: ---
 
   // PreHatchContribution is a contribution in the curve hatching phase.
@@ -88,9 +90,9 @@ contract CommonsToken is BondingCurveToken {
   modifier expiredStatus(bool _wantExpire) {
     bool expired = now <= hatchDeadline;
     if (_wantExpire) {
-      require(expired, "Curve hatch time has expired");
+      require(!expired, "Curve hatch time has expired");
     }
-    require(!expired, "Curve hatch time has expired");
+    require(expired, "Curve hatch time has expired");
     _;
   }
 
@@ -109,7 +111,7 @@ contract CommonsToken is BondingCurveToken {
   function _pullExternalTokens(uint256 _amount)
     internal
   {
-    externalToken.transferFrom(msg.sender, address(this), _amount);
+    externalToken.transfer(address(this), _amount);
   }
 
   // End the hatching phase of the curve.
@@ -202,6 +204,7 @@ contract CommonsToken is BondingCurveToken {
     uint256 transferable = (1 - (friction / DENOMINATOR_PPM) * reimbursement);
     externalToken.transfer(msg.sender, transferable);
     externalToken.transfer(fundingPool, reimbursement - transferable);
+    return reimbursement;
   }
 
   // --- PUBLIC FUNCTIONS: ---
@@ -216,8 +219,9 @@ contract CommonsToken is BondingCurveToken {
   function burn(uint256 _amount)
     public
     whileHatched(true)
+    returns (uint256)
   {
-    _curvedBurn(_amount);
+    return _curvedBurn(_amount);
   }
 
   function hatchContribute(uint256 _value)
@@ -229,9 +233,11 @@ contract CommonsToken is BondingCurveToken {
     uint256 contributed = _value;
 
     if(raisedExternal < initialRaise) {
+      emit LogVal(1);
       raisedExternal += _value;
       _pullExternalTokens(contributed);
     } else {
+      emit LogVal(0);
       contributed = initialRaise - raisedExternal;
       raisedExternal = initialRaise;
       _pullExternalTokens(contributed);
