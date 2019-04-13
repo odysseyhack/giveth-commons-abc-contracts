@@ -6,11 +6,16 @@
   "devDependencies": {
     "chai": "^4.2.0",
     "dotenv": "^7.0.0",
+    "ganache-cli": "^6.4.2",
     "openzeppelin-eth": "^2.0.2",
     "openzeppelin-test-helpers": "^0.3.2",
     "solhint": "^2.0.0",
     "truffle": "^5.0.12",
+<<<<<<< HEAD
     "truffle-hdwallet-provider": "^1.0.6",
+=======
+    "truffle-hdwallet-provider": "^1.0.4",
+>>>>>>> Add truffle and ganache as dev deps
     "truffle-privatekey-provider": "^1.1.0",
     "web3": "^1.0.0-beta.52",
     "zos-lib": "^2.0.1"
