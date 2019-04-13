@@ -67,9 +67,9 @@ contract CommonsToken is ERC20BondingToken {
       // Once we reached the hatch phase, we allow the fundingPool
       // to pull theta times the balance into their control.
       // 1 - theta is reserve.
-      uint256 toBeTransfered = initialRaise * theta /
-      _burn(address(this), to)
-      reserveToken.approve(fundingPool, reserveToken.balanceOf(address(this)) * (theta / denominator));
+      uint256 toBeTransfered = initialRaise * theta / denominator;
+      _burn(address(this), toBeTransfered);
+      _mint(fundingPool, toBeTransfered);
     }
     // We mint to our account.
     // Theoretically, the price is increasing (up to P1), but since we are in the hatching phase, the
