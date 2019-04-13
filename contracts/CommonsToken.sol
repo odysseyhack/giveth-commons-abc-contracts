@@ -98,7 +98,7 @@ contract TestERC20BondingToken is ERC20BondingToken {
     // toBeUnlockedPercentage = toBeUnlockedPPM / DENOMINATOR
     // toBeUnlocked = Percentage * totalAllocated
     uint256 toBeUnlocked = (initialContributions[msg.sender].contributed / initialRaise) * p0 *
-        ((totalUnlocked - initialContributionRegistry[msg.sender.percentageUnlocked]) / DENOMINATOR);
+        ((totalUnlocked - initialContributions[msg.sender].percentageTokenUnlocked) / DENOMINATOR);
     // we burn the token previously minted to our account and mint tokens to the hatcher
     _burn(balanceOf(address(this)), toBeUnlocked);
     _mint(msg.sender, toBeUnlocked);

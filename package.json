@@ -4,24 +4,20 @@
   "private": true,
   "license": "MIT",
   "devDependencies": {
-    "bn.js": "^4.11.8",
     "chai": "^4.2.0",
     "dotenv": "^7.0.0",
     "openzeppelin-eth": "^2.0.2",
     "openzeppelin-test-helpers": "^0.3.2",
     "solhint": "^2.0.0",
-    "truffle-hdwallet-provider": "^1.0.4",
+    "truffle": "^5.0.12",
+    "truffle-hdwallet-provider": "^1.0.6",
     "truffle-privatekey-provider": "^1.1.0",
     "web3": "^1.0.0-beta.52",
     "zos-lib": "^2.0.1"
   },
   "scripts": {
-    "compile": "truffle compile",
-    "console": "truffle console",
-    "lint": "solhint --max-warnings 0 \"contracts/**/*.sol\"",
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "compile": "./node_modules/.bin/truffle compile",
+    "console": "./node_modules/.bin/truffle console",
+    "lint": "solhint --max-warnings 0 \"contracts/**/*.sol\""
   }
 }
