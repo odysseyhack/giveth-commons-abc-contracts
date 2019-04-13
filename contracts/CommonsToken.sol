@@ -10,8 +10,8 @@ contract CommonsToken is BondingCurveToken {
   // Each contribution is an amount of reserve tokens.
   // Each contribution also tracks the percentage of tokens that was unlocked.
   struct PreHatchContribution {
-    uint256 amount;
-    uint256 percentTokenUnlocked;
+    uint256 paidExternal;
+    uint256 lockedInternal;
   }
 
   // --- CONSTANTS: ---
@@ -37,14 +37,14 @@ contract CommonsToken is BondingCurveToken {
   // Total amount of EXTERNAL tokens raised:
   uint256 public raisedExternal;
 
+  // Total amount of unlocked INTERNAL tokens.
+  uint256 private unlockedInternal;
+
   // Curve state (has it been hatched?).
   bool public isHatched;
 
   // Mapping of hatchers to contributions.
-  mapping(address => PreHatchContribution) contribs;
-
-  // Total percentage of INTERNAL tokens unlocked (in parts per million).
-  uint256 private unlockedInternal;
+  mapping(address => PreHatchContribution) initialContributions;
 
   // --- MODIFIERS: ---
 
@@ -59,7 +59,7 @@ contract CommonsToken is BondingCurveToken {
   }
 
   modifier onlyHatcher() {
-    require(contribs[msg.sender].amount != 0, "Must be called by a hatcher");
+    require(initialContributions[msg.sender].paidExternal != 0, "Must be called by a hatcher");
     _;
   }
 
@@ -75,13 +75,13 @@ contract CommonsToken is BondingCurveToken {
 
   // --- INTERNAL FUNCTIONS: ---
 
-  function _ppmToPercent(uint256 _val)
-    internal
-    pure
-    returns (uint256 resultPPM)
-  {
-    return _val / DENOMINATOR_PPM;
-  }
+  // function _ppmToPercent(uint256 _val)
+  //   internal
+  //   pure
+  //   returns (uint256 resultPPM)
+  // {
+  //   return _val / DENOMINATOR_PPM;
+  // }
 
   // Try and pull the given amount of reserve token into the contract balance.
   // Reverts if there is no approval.
@@ -97,10 +97,18 @@ contract CommonsToken is BondingCurveToken {
   function _endHatchPhase()
     internal
   {
-    uint256 amount = initialRaise * _ppmToPercent(theta);
+    uint256 amountFundingPool = initialRaise * (theta / DENOMINATOR_PPM);
+    uint256 amountReserve = initialRaise * ((1-theta) / DENOMINATOR_PPM);
 
-    _burn(address(this), amount);
-    _mint(fundingPool, amount);
+    // _transfer(address(this), fundingPool, amount);
+
+    // Mint INTERNAL tokens to the funding pool:
+    _mint(fundingPool, amountFundingPool);
+
+    // Mint INTERNAL tokens to the reserve:
+    _mint(address(this), amountReserve);
+
+    // End the hatching phase.
     isHatched = true;
   }
 
@@ -114,8 +122,11 @@ contract CommonsToken is BondingCurveToken {
   )
     internal
   {
-    _mint(address(this), calculateCurvedMintReturn(_amount));
-    contribs[_adr].amount += _amount;
+    // Increase the amount paid in EXTERNAL tokens.
+    initialContributions[_adr].paidExternal += _amount;
+
+    // Lock the INTERNAL tokens, total is EXTERNAL amount * price of internal token during the raise.
+    initialContributions[_adr].lockedInternal += _amount * p0;
   }
 
   // Constructor.
@@ -201,17 +212,20 @@ contract CommonsToken is BondingCurveToken {
     _mintInternalAndLock(msg.sender, contributed);
   }
 
-  function fundsAllocated(uint256 _value)
+  function fundsAllocated(uint256 _externalAllocated)
     public
     onlyFundingPool
     whileHatched(true)
   {
     // Currently, we unlock a 1/1 proportion of tokens.
     // We could set a different proportion:
-    //  100.000 funds spend => 50000 worth of funds unlocked.
-    // We should only update the total unlocked when it is less than 100%
-    if(unlockedInternal < DENOMINATOR_PPM) {
-      unlockedInternal += (_value * DENOMINATOR_PPM / initialRaise);
+    //  100.000 funds spend => 50.000 worth of funds unlocked.
+    // We should only update the total unlocked when it is less than 100%.
+
+    // TODO: add vesting period ended flag and optimise check.
+    unlockedInternal += _externalAllocated / p0;
+    if (unlockedInternal >= initialRaise * p0) {
+      unlockedInternal += initialRaise * p0;
     }
   }
 
@@ -220,19 +234,20 @@ contract CommonsToken is BondingCurveToken {
     whileHatched(true)
     onlyHatcher
   {
-    require(contribs[msg.sender].percentTokenUnlocked < unlockedInternal);
-    // allocationPercentage = (initialContributions[msg.sender].contributed / initialRaise)
-    // -- percentage of the total contribution during the hatch phase of the msg.sender
-    // totalAllocated = allocationPercentage * p0 == total tokens allocated to hatcher (locked + unlocked)
-    // toBeunlockedInternal = totalUnlocked - initialContributionRegistry[msg.sender.percentageUnlocked
-    // -- percentage in ppm that we want to unlock
-    // toBeUnlockedPercentage = toBeunlockedInternal / denominator
-    // toBeUnlocked = Percentage * totalAllocated
-    uint256 toBeUnlocked = (contribs[msg.sender].amount / initialRaise) * p0 *
-        ((unlockedInternal - contribs[msg.sender].percentTokenUnlocked) / DENOMINATOR_PPM);
-    // we burn the token previously minted to our account and mint tokens to the hatcher
-    _burn(address(this), toBeUnlocked);
-    _mint(msg.sender, toBeUnlocked);
+    require(initialContributions[msg.sender].lockedInternal > 0);
+
+    uint256 paidExternal = initialContributions[msg.sender].paidExternal;
+    uint256 lockedInternal = initialContributions[msg.sender].lockedInternal;
+
+    // The total amount of INTERNAL tokens that should have been unlocked.
+    uint256 shouldHaveUnlockedInternal = (paidExternal / initialRaise) * unlockedInternal;
+    // The amount of INTERNAL tokens that was already unlocked.
+    uint256 previouslyUnlockedInternal = (paidExternal / p0) - lockedInternal;
+    // The amount that can be unlocked.
+    uint256 toUnlock = shouldHaveUnlockedInternal - previouslyUnlockedInternal;
+
+    initialContributions[msg.sender].lockedInternal -= toUnlock;
+    _transfer(address(this), msg.sender, toUnlock);
   }
 
   function poolBalance()
