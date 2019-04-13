@@ -1,55 +1,137 @@
 pragma solidity ^0.5.0;
 
-import "./ERC20BondingToken.sol";
+import "./BondingCurveToken.sol";
 
-contract CommonsToken is ERC20BondingToken {
+contract CommonsToken is BondingCurveToken {
 
   // --- STRUCT DELCARATIONS: ---
-  struct initialContributionRegistry {
-    uint256 contributed;
-    uint256 percentageTokenUnlocked;
+
+  // PreHatchContribution is a contribution in the curve hatching phase.
+  // Each contribution is an amount of reserve tokens.
+  // Each contribution also tracks the percentage of tokens that was unlocked.
+  struct PreHatchContribution {
+    uint256 paidExternal;
+    uint256 lockedInternal;
   }
 
   // --- CONSTANTS: ---
-  uint256 constant denominator = 1000000;
+
+  // The denominator of each contribuition.
+  // All contributions are measuted in ppm (parts per million).
+  uint256 constant DENOMINATOR_PPM = 1000000;
 
   // --- STORAGE: ---
-  ERC20 public reserveToken;
+
+  // External (reserve) token contract.
+  ERC20 public externalToken;
+
+  // Address of the funding pool contract.
+  address public fundingPool;
+
+  // Curve parameters:
   uint256 public theta;
   uint256 public p0;
   uint256 public initialRaise;
-  uint256 public raised;
-  address public fundingPool;
   uint256 public friction;
-  bool public isInHatchingPhase;
 
-  mapping(address => initialContributionRegistry) initialContributions;
+  // Total amount of EXTERNAL tokens raised:
+  uint256 public raisedExternal;
 
-  //TODO: define
-  uint256 totalUnlocked;
+  // Total amount of unlocked INTERNAL tokens.
+  uint256 private unlockedInternal;
+
+  // Curve state (has it been hatched?).
+  bool public isHatched;
+
+  // Mapping of hatchers to contributions.
+  mapping(address => PreHatchContribution) initialContributions;
 
   // --- MODIFIERS: ---
-  modifier notHatchingPhase() {
-    require(!isInHatchingPhase, "Must not be in hatching phase");
+
+  modifier whileHatched(bool _hatched) {
+    require(isHatched == _hatched, "Curve must be hatched");
     _;
   }
 
-  modifier hatchingPhase() {
-    require(isInHatchingPhase, "Must be in hatcing phase");
+  modifier onlyFundingPool() {
+    require(msg.sender == fundingPool, "Must be called by the funding pool");
     _;
   }
+
+  modifier onlyHatcher() {
+    require(initialContributions[msg.sender].paidExternal != 0, "Must be called by a hatcher");
+    _;
+  }
+
+  modifier mustBeInPPM(uint256 _val) {
+    require(_val <= DENOMINATOR_PPM, "Value must be in PPM");
+    _;
+  }
+
+  modifier mustBeNonZeroAdr(address _adr) {
+    require(_adr != address(0), "Address must not be zero");
+    _;
+  }
+
+  // --- INTERNAL FUNCTIONS: ---
+
+  // function _ppmToPercent(uint256 _val)
+  //   internal
+  //   pure
+  //   returns (uint256 resultPPM)
+  // {
+  //   return _val / DENOMINATOR_PPM;
+  // }
 
   // Try and pull the given amount of reserve token into the contract balance.
   // Reverts if there is no approval.
-  function _pullReserveTokens(uint256 amount)
+  function _pullExternalTokens(uint256 _amount)
     internal
   {
-    reserveToken.transferFrom(msg.sender, address(this), amount);
+    externalToken.transferFrom(msg.sender, address(this), _amount);
   }
 
-  // initialize the curve
+  // End the hatching phase of the curve.
+  // Allow the fundingPool to pull theta times the balance into their control.
+  // NOTE: 1 - theta is reserve.
+  function _endHatchPhase()
+    internal
+  {
+    uint256 amountFundingPool = initialRaise * (theta / DENOMINATOR_PPM);
+    uint256 amountReserve = initialRaise * ((1-theta) / DENOMINATOR_PPM);
+
+    // _transfer(address(this), fundingPool, amount);
+
+    // Mint INTERNAL tokens to the funding pool:
+    _mint(fundingPool, amountFundingPool);
+
+    // Mint INTERNAL tokens to the reserve:
+    _mint(address(this), amountReserve);
+
+    // End the hatching phase.
+    isHatched = true;
+  }
+
+  // We mint to contributor account and lock the tokens.
+  // Theoretically, the price is increasing (up to P1),
+  // but since we are in the hatching phase, the actual price will stay P0.
+  // The contract will hold the locked tokens.
+  function _mintInternalAndLock(
+    address _adr,
+    uint256 _amount
+  )
+    internal
+  {
+    // Increase the amount paid in EXTERNAL tokens.
+    initialContributions[_adr].paidExternal += _amount;
+
+    // Lock the INTERNAL tokens, total is EXTERNAL amount * price of internal token during the raise.
+    initialContributions[_adr].lockedInternal += _amount * p0;
+  }
+
+  // Constructor.
   constructor(
-    address _reserveToken,
+    address _externalToken,
     uint32 _reserveRatio,
     uint256 _gasPrice,
     uint256 _theta,
@@ -57,103 +139,122 @@ contract CommonsToken is ERC20BondingToken {
     uint256 _initialRaise,
     address _fundingPool,
     uint256 _friction
-  ) public ERC20BondingToken(
-      reserveRatio,
-      _gasPrice,
-      _reserveToken,
-      friction,
-      _fundingPool
-    )
+  )
+    public
+    mustBeNonZeroAdr(_externalToken)
+    mustBeNonZeroAdr(_fundingPool)
+    mustBeInPPM(_theta)
+    mustBeInPPM(_friction)
+    BondingCurveToken(_reserveRatio, _gasPrice)
   {
-      require(theta <= denominator, "Theta should be a percentage in ppm");
-      require(_reserveToken != address(0), "Reservetoken is not correctly defined");
-      require(_fundingPool != address(0), "Fundingpool is not correctly defined");
-      require(_friction <= denominator, "Friction should be a percentage in ppm");
-      reserveToken = ERC20(_reserveToken);
-      theta = _theta;
-      p0 = _p0;
-      initialRaise = _initialRaise;
-      fundingPool = _fundingPool;
-      friction = _friction;
+    theta = _theta;
+    p0 = _p0;
+    initialRaise = _initialRaise;
+    fundingPool = _fundingPool;
+    friction = _friction;
+
+    externalToken = ERC20(_externalToken);
   }
 
-  function mint(uint256 amount)
-    public
-    notHatchingPhase
-  {
-    _curvedMint(amount);
+  /**
+   * @dev Mint tokens
+   *
+   * @param amount Amount of tokens to deposit
+   */
+  function _curvedMint(uint256 amount) internal returns (uint256) {
+    require(externalToken.transferFrom(msg.sender, address(this), amount));
+    super._curvedMint(amount);
   }
 
-  function burn(uint256 amount)
+  /**
+   * @dev Burn tokens
+   *
+   * @param amount Amount of tokens to burn
+   */
+  function _curvedBurn(uint256 amount) internal returns (uint256) {
+    uint256 reimbursement = super._curvedBurn(amount);
+    uint256 transferable = (1 - (friction / DENOMINATOR_PPM) * reimbursement);
+    externalToken.transfer(msg.sender, transferable);
+    externalToken.transfer(fundingPool, reimbursement - transferable);
+  }
+
+  // --- PUBLIC FUNCTIONS: ---
+
+  function mint(uint256 _amount)
     public
-    notHatchingPhase
+    whileHatched(true)
   {
-    _curvedBurn(amount);
+    _curvedMint(_amount);
+  }
+
+  function burn(uint256 _amount)
+    public
+    whileHatched(true)
+  {
+    _curvedBurn(_amount);
   }
 
   function hatchContribute(uint256 _value)
     public
-    hatchingPhase
+    whileHatched(false)
   {
-    uint256 contributed;
-    if(raised < initialRaise) {
-      raised += _value;
-      // We call the DAI contract and try to pull DAI to this contract.
-      // Reverts if there is no approval.
-      reserveToken.transferFrom(msg.sender, address(this), contributed);
+    uint256 contributed = _value;
+
+    if(raisedExternal < initialRaise) {
+      raisedExternal += _value;
+      _pullExternalTokens(contributed);
     } else {
-      contributed = initialRaise - raised;
-      raised = initialRaise;
-      isInHatchingPhase = false;
-      // We call the DAI contract and try to pull DAI to this contract.
-      // Reverts if there is no approval.
-      reserveToken.transferFrom(msg.sender, address(this), contributed);
-      // Once we reached the hatch phase, we allow the fundingPool
-      // to pull theta times the balance into their control.
-      // 1 - theta is reserve.
-      uint256 toBeTransfered = initialRaise * (theta / denominator);
-      _burn(address(this), toBeTransfered);
-      reserveToken.approve(fundingPool, toBeTransfered);
+      contributed = initialRaise - raisedExternal;
+      raisedExternal = initialRaise;
+      _pullExternalTokens(contributed);
+      _endHatchPhase();
     }
-    // We mint to our account.
-    // Theoretically, the price is increasing (up to P1), but since we are in the hatching phase, the
-    // actual price stays P0.
-    uint256 amountToMint = calculateCurvedMintReturn(contributed);
-    _mint(address(this), amountToMint);
-    initialContributions[msg.sender].contributed += contributed;
+    _mintInternalAndLock(msg.sender, contributed);
   }
 
-  function fundsAllocated(uint256 _value)
+  function fundsAllocated(uint256 _externalAllocated)
     public
-    notHatchingPhase
+    onlyFundingPool
+    whileHatched(true)
   {
-    require(msg.sender == fundingPool);
-    // TODO: now, we unlock based on 1 / 1 proportion.
-    // This could also be another proportion:
-    // -- i.e. 100.000 funds spend => 50000 worth of funds unlocked
-    // We should only update the total unlocked when it is less than 100%
-    if(totalUnlocked < denominator) {
-      totalUnlocked += (_value * denominator / initialRaise);
+    // Currently, we unlock a 1/1 proportion of tokens.
+    // We could set a different proportion:
+    //  100.000 funds spend => 50.000 worth of funds unlocked.
+    // We should only update the total unlocked when it is less than 100%.
+
+    // TODO: add vesting period ended flag and optimise check.
+    unlockedInternal += _externalAllocated / p0;
+    if (unlockedInternal >= initialRaise * p0) {
+      unlockedInternal += initialRaise * p0;
     }
   }
 
   function claimTokens()
     public
-    notHatchingPhase
+    whileHatched(true)
+    onlyHatcher
   {
-    require(initialContributions[msg.sender].contributed != 0);
-    require(initialContributions[msg.sender].percentageTokenUnlocked < totalUnlocked);
-    // allocationPercentage = (initialContributions[msg.sender].contributed / initialRaise)
-    // -- percentage of the total contribution during the hatch phase of the msg.sender
-    // totalAllocated = allocationPercentage * p0 == total tokens allocated to hatcher (locked + unlocked)
-    // toBeUnlockedPPM = totalUnlocked - initialContributionRegistry[msg.sender.percentageUnlocked
-    // -- percentage in ppm that we want to unlock
-    // toBeUnlockedPercentage = toBeUnlockedPPM / denominator
-    // toBeUnlocked = Percentage * totalAllocated
-    uint256 toBeUnlocked = (initialContributions[msg.sender].contributed / initialRaise) * p0 *
-        ((totalUnlocked - initialContributions[msg.sender].percentageTokenUnlocked) / denominator);
-    // we burn the token previously minted to our account and mint tokens to the hatcher
-    _burn(address(this), toBeUnlocked);
-    _mint(msg.sender, toBeUnlocked);
+    require(initialContributions[msg.sender].lockedInternal > 0);
+
+    uint256 paidExternal = initialContributions[msg.sender].paidExternal;
+    uint256 lockedInternal = initialContributions[msg.sender].lockedInternal;
+
+    // The total amount of INTERNAL tokens that should have been unlocked.
+    uint256 shouldHaveUnlockedInternal = (paidExternal / initialRaise) * unlockedInternal;
+    // The amount of INTERNAL tokens that was already unlocked.
+    uint256 previouslyUnlockedInternal = (paidExternal / p0) - lockedInternal;
+    // The amount that can be unlocked.
+    uint256 toUnlock = shouldHaveUnlockedInternal - previouslyUnlockedInternal;
+
+    initialContributions[msg.sender].lockedInternal -= toUnlock;
+    _transfer(address(this), msg.sender, toUnlock);
+  }
+
+  function poolBalance()
+    public
+    view
+    returns(uint256)
+  {
+    return externalToken.balanceOf(address(this));
   }
 }
