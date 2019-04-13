@@ -11,10 +11,13 @@ import "./BondingCurveToken.sol";
  */
 contract ERC20BondingToken is BondingCurveToken {
 
-  ERC20 reserveToken;
-  uint256 friction;
-  uint256 denominator = 1000000;
-  address fundingPool;
+  // --- CONSTANTS: ---
+  uint256 constant denominator = 1000000;
+
+  // --- STORAGE: ---
+  ERC20 public reserveToken;
+  uint256 public friction;
+  address public fundingPool;
 
   // /**
   //  * @dev initialize augmented bonding curve
@@ -37,14 +40,12 @@ constructor(
     uint256 _gasPrice,
     address _reserveToken,
     uint256 _friction,
-    uint256 _denominator,
     address _fundingPool
   ) public
     BondingCurveToken(_reserveRatio, _gasPrice)
   {
     reserveToken = ERC20(_reserveToken);
     friction = _friction;
-    denominator = _denominator;
     fundingPool = _fundingPool;
   }
 

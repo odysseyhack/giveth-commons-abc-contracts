@@ -4,9 +4,16 @@ import "./ERC20BondingToken.sol";
 
 contract CommonsToken is ERC20BondingToken {
 
-  // =======================================
-  // == STORAGE
-  // =======================================
+  // --- STRUCT DELCARATIONS: ---
+  struct initialContributionRegistry {
+    uint256 contributed;
+    uint256 percentageTokenUnlocked;
+  }
+
+  // --- CONSTANTS: ---
+  uint256 constant denominator = 1000000;
+
+  // --- STORAGE: ---
   ERC20 public reserveToken;
   uint256 public theta;
   uint256 public p0;
@@ -16,35 +23,12 @@ contract CommonsToken is ERC20BondingToken {
   uint256 public friction;
   bool public isInHatchingPhase;
 
-  uint256 public denominator = 1000000;
-
-  struct initialContributionRegistry {
-    uint256 contributed;
-    uint256 percentageTokenUnlocked;
-  }
-
   mapping(address => initialContributionRegistry) initialContributions;
 
   //TODO: define
   uint256 totalUnlocked;
 
-  // /**
-  //  * @dev initialize augmented bonding curve
-  //  * @param _reserveToken this is the token which is being allocated as a reserve pool + funding pool (xDai)
-  //  * @param reserveRatio get's used by the bancorFormula and is equal to the connectorWeight (CW).
-  //  *  The connectorWeight is related to Kappa as CW = 1 / (k+1).
-  //  *  Source:
-  //  *  https://medium.com/@billyrennekamp/converting-between-bancor-and-bonding-curve-price-formulas-9c11309062f5.
-  //  *  Note: 142857 ~> kappa = 6
-  //  * @param _theta this is the percentage (in ppm) of funds that gets allocated to the funding pool
-  //  * @param _p0 the price at which hatchers can buy into the Curve => the price in reservetoken (dai) per native token
-  //  * @param _initialRaise (initialRaise, d0, in DAI), the goal of the Hatch phase
-  //  * @param _fundingPool the address (organization, DAO, entity) to which we transfer theta times the contribution
-  //  *  during the hatching phase
-  //  * @param _friction fee (percentage in ppm) which is paid to the funding pool, every time a person calls curvedBurn
-  //  * @param _gasPrice mitigation against front-running attacks by forcing all users to pay the same gas price
-  //  */
-
+  // --- MODIFIERS: ---
   modifier notHatchingPhase() {
     require(!isInHatchingPhase, "Must not be in hatching phase");
     _;
@@ -55,6 +39,15 @@ contract CommonsToken is ERC20BondingToken {
     _;
   }
 
+  // Try and pull the given amount of reserve token into the contract balance.
+  // Reverts if there is no approval.
+  function _pullReserveTokens(uint256 amount)
+    internal
+  {
+    reserveToken.transferFrom(msg.sender, address(this), amount);
+  }
+
+  // initialize the curve
   constructor(
     address _reserveToken,
     uint32 _reserveRatio,
@@ -69,9 +62,8 @@ contract CommonsToken is ERC20BondingToken {
       _gasPrice,
       _reserveToken,
       friction,
-      denominator,
       _fundingPool
-      )
+    )
   {
       require(theta <= denominator, "Theta should be a percentage in ppm");
       require(_reserveToken != address(0), "Reservetoken is not correctly defined");
@@ -99,14 +91,13 @@ contract CommonsToken is ERC20BondingToken {
     _curvedBurn(amount);
   }
 
-  function hatchContribute(uint256 value)
+  function hatchContribute(uint256 _value)
     public
     hatchingPhase
   {
     uint256 contributed;
     if(raised < initialRaise) {
-      contributed = value;
-      raised += contributed;
+      raised += _value;
       // We call the DAI contract and try to pull DAI to this contract.
       // Reverts if there is no approval.
       reserveToken.transferFrom(msg.sender, address(this), contributed);
@@ -132,7 +123,7 @@ contract CommonsToken is ERC20BondingToken {
     initialContributions[msg.sender].contributed += contributed;
   }
 
-  function fundsAllocated(uint value)
+  function fundsAllocated(uint256 _value)
     public
     notHatchingPhase
   {
@@ -142,7 +133,7 @@ contract CommonsToken is ERC20BondingToken {
     // -- i.e. 100.000 funds spend => 50000 worth of funds unlocked
     // We should only update the total unlocked when it is less than 100%
     if(totalUnlocked < denominator) {
-      totalUnlocked += (value * denominator / initialRaise);
+      totalUnlocked += (_value * denominator / initialRaise);
     }
   }
 
