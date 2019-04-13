@@ -34,6 +34,9 @@ contract CommonsToken is BondingCurveToken {
   uint256 public initialRaise;
   uint256 public friction;
 
+  // Minimal EXTERNAL token contribution:
+  uint256 public minExternalContribution;
+
   // Total amount of EXTERNAL tokens raised:
   uint256 public raisedExternal;
 
@@ -42,6 +45,9 @@ contract CommonsToken is BondingCurveToken {
 
   // Curve state (has it been hatched?).
   bool public isHatched;
+
+  // Time by which the curve must be hatched.
+  uint256 public hatchDeadline;
 
   // Mapping of hatchers to contributions.
   mapping(address => PreHatchContribution) initialContributions;
@@ -70,6 +76,21 @@ contract CommonsToken is BondingCurveToken {
 
   modifier mustBeNonZeroAdr(address _adr) {
     require(_adr != address(0), "Address must not be zero");
+    _;
+  }
+
+  modifier mustBeLargeEnoughContribution(uint256 _amountExternal) {
+    uint256 totalAmountExternal = initialContributions[msg.sender].paidExternal + _amountExternal;
+    require(totalAmountExternal >= minExternalContribution, "Insufficient contribution");
+    _;
+  }
+
+  modifier expiredStatus(bool _wantExpire) {
+    bool expired = now <= hatchDeadline;
+    if (_wantExpire) {
+      require(expired, "Curve hatch time has expired");
+    }
+    require(!expired, "Curve hatch time has expired");
     _;
   }
 
@@ -138,7 +159,9 @@ contract CommonsToken is BondingCurveToken {
     uint256 _p0,
     uint256 _initialRaise,
     address _fundingPool,
-    uint256 _friction
+    uint256 _friction,
+    uint256 _duration,
+    uint256 _minExternalContribution
   )
     public
     mustBeNonZeroAdr(_externalToken)
@@ -152,6 +175,9 @@ contract CommonsToken is BondingCurveToken {
     initialRaise = _initialRaise;
     fundingPool = _fundingPool;
     friction = _friction;
+
+    hatchDeadline = now + _duration;
+    minExternalContribution = _minExternalContribution;
 
     externalToken = ERC20(_externalToken);
   }
@@ -196,7 +222,9 @@ contract CommonsToken is BondingCurveToken {
 
   function hatchContribute(uint256 _value)
     public
+    mustBeLargeEnoughContribution(_value)
     whileHatched(false)
+    expiredStatus(false)
   {
     uint256 contributed = _value;
 
@@ -209,6 +237,7 @@ contract CommonsToken is BondingCurveToken {
       _pullExternalTokens(contributed);
       _endHatchPhase();
     }
+
     _mintInternalAndLock(msg.sender, contributed);
   }
 
@@ -248,6 +277,16 @@ contract CommonsToken is BondingCurveToken {
 
     initialContributions[msg.sender].lockedInternal -= toUnlock;
     _transfer(address(this), msg.sender, toUnlock);
+  }
+
+  function refund()
+    public
+    whileHatched(false)
+    expiredStatus(true)
+  {
+    // Refund the EXTERNAL tokens from the contibution.
+    uint256 paidExternal = initialContributions[msg.sender].paidExternal;
+    externalToken.transfer(msg.sender, paidExternal);
   }
 
   function poolBalance()
