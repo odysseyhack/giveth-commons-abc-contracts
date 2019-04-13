@@ -1,10 +1,7 @@
 pragma solidity ^0.5.0;
 
-import "openzeppelin-eth/contracts/token/ERC20/ERC20.sol";
-import "openzeppelin-eth/contracts/token/ERC20/ERC20Detailed.sol";
-import "zos-lib/contracts/Initializable.sol";
-
-import "./BancorFormula.sol";
+import "./vendor/ERC20/ERC20.sol";
+import "./vendor/BancorFormula.sol";
 
 /**
  * @title Bonding Curve
@@ -13,7 +10,7 @@ import "./BancorFormula.sol";
  * https://github.com/bancorprotocol/contracts
  * https://github.com/ConsenSys/curationmarkets/blob/master/CurationMarkets.sol
  */
-contract BondingCurveToken is Initializable, ERC20, BancorFormula {
+contract BondingCurveToken is ERC20, BancorFormula {
   /*
     reserve ratio, represented in ppm, 1-1000000
     1/3 corresponds to y= multiple * x^2
@@ -28,7 +25,7 @@ contract BondingCurveToken is Initializable, ERC20, BancorFormula {
 
   /*
     - Front-running attacks are currently mitigated by the following mechanisms:
-    TODO - minimum return argument for each conversion 
+    TODO - minimum return argument for each conversion
     provides a way to define a minimum/maximum price for the transaction
     - gas price limit prevents users from having control over the order of execution
   */
@@ -37,7 +34,7 @@ contract BondingCurveToken is Initializable, ERC20, BancorFormula {
   event CurvedMint(address sender, uint256 amount, uint256 deposit);
   event CurvedBurn(address sender, uint256 amount, uint256 reimbursement);
 
-  function initialize(uint32 _reserveRatio, uint256 _gasPrice) initializer public payable {
+  constructor(uint32 _reserveRatio, uint256 _gasPrice) public {
     reserveRatio = _reserveRatio;
     gasPrice = _gasPrice;
   }
@@ -57,10 +54,10 @@ contract BondingCurveToken is Initializable, ERC20, BancorFormula {
     return _curvedMintFor(msg.sender, deposit);
   }
 
-  function _curvedMintFor(address user, uint256 deposit) 
-    validGasPrice 
-    validMint(deposit) 
-    internal 
+  function _curvedMintFor(address user, uint256 deposit)
+    validGasPrice
+    validMint(deposit)
+    internal
     returns (uint256)
   {
     uint256 amount = calculateCurvedMintReturn(deposit);
