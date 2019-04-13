@@ -1,20 +1,31 @@
+const ReserveTokenMock = artifacts.require("ERC20Mintable");
+const CommonsToken = artifacts.require("CommonsToken");
+const FundingPoolMock = artifacts.require("FundingPoolMock");
 
-let reserveRatio = 142857; // kappa ~ 6
-let theta = 350000 // 35% in ppm
-let p0 =  1
-let initialRaise = 300000
-let fundingPool // tbd
-let friction = 20000 // 2% in ppm
-let gasPrice = 15000000000 // 15gwei
+const reserveRatio = 142857; // kappa ~ 6
+const theta = 350000; // 35% in ppm
+const p0 =  1;
+const initialRaise = 300000;
+const friction = 20000; // 2% in ppm
+const gasPrice = 15000000000; // 15gwei
 
-var ReserveTokenMock = artifacts.require("ERC20Mintable");
-var CommonsToken = artifacts.require("CommonsToken");
-var FundingPoolMock = artifacts.require("FundingPoolMock");
 
 module.exports = async function(deployer) {
-  let fundingPool = await deployer.deploy(FundingPoolMock)
-  let reserveToken = await deployer.deploy(ReserveTokenMock)
-  await deployer.deploy(CommonsToken, reserveToken.address, reserveRatio, theta, p0, initialRaise, fundingPool.address, friction, gasPrice);
+  await deployer.deploy(FundingPoolMock);
+  await FundingPoolMock.deployed();
+
+  await deployer.deploy(ReserveTokenMock);
+  await ReserveTokenMock.deployed();
+
+  await deployer.deploy(CommonsToken,
+    ReserveTokenMock.address,
+    reserveRatio,
+    theta,
+    p0,
+    initialRaise,
+    FundingPoolMock.address,
+    friction,
+    gasPrice);
 };
 
 
