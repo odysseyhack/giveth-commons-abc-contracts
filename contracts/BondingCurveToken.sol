@@ -29,7 +29,7 @@ contract BondingCurveToken is ERC20, BancorFormula {
     provides a way to define a minimum/maximum price for the transaction
     - gas price limit prevents users from having control over the order of execution
   */
-  uint256 public gasPrice = 0 wei; // maximum gas price for bancor transactions
+  uint256 public gasPrice; // maximum gas price for bancor transactions
 
   event CurvedMint(address sender, uint256 amount, uint256 deposit);
   event CurvedBurn(address sender, uint256 amount, uint256 reimbursement);
