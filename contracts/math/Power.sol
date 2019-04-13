@@ -200,7 +200,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License. */
 
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.0;
 
  /**
  * @title Power function by Bancor

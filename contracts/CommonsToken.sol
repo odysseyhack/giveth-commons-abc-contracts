@@ -1,20 +1,23 @@
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.0;
 
 import "./ERC20BondingToken.sol";
 
 contract TestERC20BondingToken is ERC20BondingToken {
 
-  address _reserveToken;
-  uint32 _reserveRatio;
-  uint256 _theta;
-  uint256 _p0;
-  uint256 _initialRaise;
-  address _fundingPool;
-  uint256 _friction;
-  uint256 _gasPrice;
+  ERC20 reserveToken;
+  // uint32 reserveRatio;
+  // uint256 theta;
+  // uint256 p0;
+  uint256 initialRaise;
+  // address fundingPool;
+  // uint256 friction;
+  // uint256 gasPrice;
+
+  // TODO: should we have this here?
+  uint256 totalUnlocked;
 
   function initialize(
-    ERC20 _reserveToken,
+    address _reserveToken,
     uint32 _reserveRatio,
     uint256 _theta,
     uint256 _p0,
@@ -55,7 +58,7 @@ contract TestERC20BondingToken is ERC20BondingToken {
       // Reverts if there is no approval.
       reserveToken.transferFrom(msg.sender, address(this), contributed);
     } else {
-      contributed = initialRaised - raised;
+      contributed = initialRaise - raised;
       raised = initialRaise;
       isInHatchingPhase = false;
       // We call the DAI contract and try to pull DAI to this contract. 
@@ -64,13 +67,13 @@ contract TestERC20BondingToken is ERC20BondingToken {
       // Once we reached the hatch phase, we allow the fundingPool 
       // to pull theta times the balance into their control.
       // 1 - theta is reserve.
-      reserveToken.approve(fundingPool, reserveToken.balanceOf(address(this)) * (theta / DENOMINATOR));
+      reserveToken.approve(fundingPool, reserveToken.balanceOf(address(this)) * (theta / denominator));
     }
     // We mint to our account. 
     // Theoretically, the price is increasing (up to P1), but since we are in the hatching phase, the 
     // actual price stays P0.
     uint256 amountToMint = calculateCurvedMintReturn(contributed);
-    _mint(address(this).balance, amountToMint);
+    _mint(address(this), amountToMint);
     initialContributions[msg.sender].contributed += contributed;
   }
 
@@ -81,8 +84,8 @@ contract TestERC20BondingToken is ERC20BondingToken {
     // This could also be another proportion: 
     // -- i.e. 100.000 funds spend => 50000 worth of funds unlocked
     // We should only update the total unlocked when it is less than 100%
-    if(totalUnlocked < DENOMINATOR) {
-      totalUnlocked += (value * DENOMINATOR / initialRaise);
+    if(totalUnlocked < denominator) {
+      totalUnlocked += (value * denominator / initialRaise);
     }
   }
 
@@ -95,12 +98,12 @@ contract TestERC20BondingToken is ERC20BondingToken {
     // totalAllocated = allocationPercentage * p0 == total tokens allocated to hatcher (locked + unlocked)
     // toBeUnlockedPPM = totalUnlocked - initialContributionRegistry[msg.sender.percentageUnlocked 
     // -- percentage in ppm that we want to unlock
-    // toBeUnlockedPercentage = toBeUnlockedPPM / DENOMINATOR
+    // toBeUnlockedPercentage = toBeUnlockedPPM / denominator
     // toBeUnlocked = Percentage * totalAllocated
     uint256 toBeUnlocked = (initialContributions[msg.sender].contributed / initialRaise) * p0 *
-        ((totalUnlocked - initialContributions[msg.sender].percentageTokenUnlocked) / DENOMINATOR);
+        ((totalUnlocked - initialContributions[msg.sender].percentageTokenUnlocked) / denominator);
     // we burn the token previously minted to our account and mint tokens to the hatcher
-    _burn(balanceOf(address(this)), toBeUnlocked);
+    _burn(address(this), toBeUnlocked);
     _mint(msg.sender, toBeUnlocked);
   }
 }
