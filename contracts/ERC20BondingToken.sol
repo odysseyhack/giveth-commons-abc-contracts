@@ -16,14 +16,6 @@ contract ERC20BondingToken is Initializable, BondingCurveToken {
   uint256 denominator = 1000000;
   address fundingPool;
 
-  struct initialContributionRegistry {
-    uint256 contributed;
-    uint256 percentageTokenUnlocked;
-  }
-
-  mapping(address => initialContributionRegistry) initialContributions;
-
-
   // /**
   //  * @dev initialize augmented bonding curve
   //  * @param _reserveToken this is the token which is being allocated as a reserve pool + funding pool (xDai)
