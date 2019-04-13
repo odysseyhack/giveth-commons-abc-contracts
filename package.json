@@ -18,10 +18,10 @@
   },
   "scripts": {
     "start": "concurrently 'npm:ganache' 'npm:deploy'",
-    "ganache": "mkdir -p .chain && ./node_modules/.bin/ganache-cli -p 8545 -d --gasLimit 7000000000000 --gasPrice 1 --acctKeys ./.chain/ganache-accounts.json -m 'ivory sibling about kiwi grant sunset beauty solar cup fame south girl'",
-    "deploy": "wait-on tcp:8545 && ./node_modules/.bin/truffle migrate --compile-all --reset --network development",
-    "compile": "./node_modules/.bin/truffle compile",
-    "test": "wait-on tcp:8545 && ./node_modules/.bin/truffle test",
+    "ganache": "mkdir -p .chain && ganache-cli -p 8545 -d --gasLimit 7000000000000 --gasPrice 1 --acctKeys ./.chain/ganache-accounts.json -m 'ivory sibling about kiwi grant sunset beauty solar cup fame south girl'",
+    "deploy": "wait-on tcp:8545 && truffle migrate --compile-all --reset --network development",
+    "compile": "truffle compile",
+    "test": "wait-on tcp:8545 && truffle test",
     "lint": "solhint --max-warnings 0 \"contracts/**/*.sol\"",
     "ci": "concurrently 'npm:ganache' 'npm:test'"
   }
