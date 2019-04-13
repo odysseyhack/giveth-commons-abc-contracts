@@ -28,7 +28,8 @@ contract BondingCurveToken is Initializable, ERC20, BancorFormula {
 
   /*
     - Front-running attacks are currently mitigated by the following mechanisms:
-    TODO - minimum return argument for each conversion provides a way to define a minimum/maximum price for the transaction
+    TODO - minimum return argument for each conversion 
+    provides a way to define a minimum/maximum price for the transaction
     - gas price limit prevents users from having control over the order of execution
   */
   uint256 public gasPrice = 0 wei; // maximum gas price for bancor transactions
@@ -56,7 +57,12 @@ contract BondingCurveToken is Initializable, ERC20, BancorFormula {
     return _curvedMintFor(msg.sender, deposit);
   }
 
-  function _curvedMintFor(address user, uint256 deposit) validGasPrice validMint(deposit) internal returns (uint256) {
+  function _curvedMintFor(address user, uint256 deposit) 
+    validGasPrice 
+    validMint(deposit) 
+    internal 
+    returns (uint256)
+  {
     uint256 amount = calculateCurvedMintReturn(deposit);
     _mint(user, amount);
     emit CurvedMint(user, amount, deposit);

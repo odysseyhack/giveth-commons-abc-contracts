@@ -26,5 +26,10 @@ module.exports = {
         ),
       network_id: 15
     }
+  },
+  compilers: {
+    solc: {
+      version: '0.5.6',
+    },
   }
 };

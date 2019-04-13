@@ -216,22 +216,22 @@ import "./math/Power.sol";
  */
 contract BancorFormula is Power {
   using SafeMath for uint256;
-   string public version = "0.3";
-   uint32 private constant MAX_WEIGHT = 1000000;
+  string public version = "0.3";
+  uint32 private constant MAX_WEIGHT = 1000000;
 
-   /**
-   * @dev given a token supply, connector balance, weight and a deposit amount (in the connector token),
-   * calculates the return for a given conversion (in the main token)
-   *
-   * Formula:
-   * Return = _supply * ((1 + _depositAmount / _connectorBalance) ^ (_connectorWeight / 1000000) - 1)
-   *
-   * @param _supply              token total supply
-   * @param _connectorBalance    total connector balance
-   * @param _connectorWeight     connector weight, represented in ppm, 1-1000000
-   * @param _depositAmount       deposit amount, in connector token
-   *
-   *  @return purchase return amount
+  /**
+  * @dev given a token supply, connector balance, weight and a deposit amount (in the connector token),
+  * calculates the return for a given conversion (in the main token)
+  *
+  * Formula:
+  * Return = _supply * ((1 + _depositAmount / _connectorBalance) ^ (_connectorWeight / 1000000) - 1)
+  *
+  * @param _supply              token total supply
+  * @param _connectorBalance    total connector balance
+  * @param _connectorWeight     connector weight, represented in ppm, 1-1000000
+  * @param _depositAmount       deposit amount, in connector token
+  *
+  *  @return purchase return amount
   */
   function calculatePurchaseReturn(
     uint256 _supply,
@@ -253,7 +253,7 @@ contract BancorFormula is Power {
     if (_connectorWeight == MAX_WEIGHT) {
       return _supply.mul(_depositAmount).div(_connectorBalance);
     }
-     uint256 result;
+    uint256 result;
     uint8 precision;
     uint256 baseN = _depositAmount.add(_connectorBalance);
     (result, precision) = power(
@@ -262,19 +262,20 @@ contract BancorFormula is Power {
     uint256 newTokenSupply = _supply.mul(result) >> precision;
     return newTokenSupply - _supply;
   }
-   /**
-   * @dev given a token supply, connector balance, weight and a sell amount (in the main token),
-   * calculates the return for a given conversion (in the connector token)
-   *
-   * Formula:
-   * Return = _connectorBalance * (1 - (1 - _sellAmount / _supply) ^ (1 / (_connectorWeight / 1000000)))
-   *
-   * @param _supply              token total supply
-   * @param _connectorBalance    total connector
-   * @param _connectorWeight     constant connector Weight, represented in ppm, 1-1000000
-   * @param _sellAmount          sell amount, in the token itself
-   *
-   * @return sale return amount
+
+  /**
+  * @dev given a token supply, connector balance, weight and a sell amount (in the main token),
+  * calculates the return for a given conversion (in the connector token)
+  *
+  * Formula:
+  * Return = _connectorBalance * (1 - (1 - _sellAmount / _supply) ^ (1 / (_connectorWeight / 1000000)))
+  *
+  * @param _supply              token total supply
+  * @param _connectorBalance    total connector
+  * @param _connectorWeight     constant connector Weight, represented in ppm, 1-1000000
+  * @param _sellAmount          sell amount, in the token itself
+  *
+  * @return sale return amount
   */
   function calculateSaleReturn(
     uint256 _supply,
@@ -301,7 +302,7 @@ contract BancorFormula is Power {
     if (_connectorWeight == MAX_WEIGHT) {
       return _connectorBalance.mul(_sellAmount).div(_supply);
     }
-     uint256 result;
+    uint256 result;
     uint8 precision;
     uint256 baseD = _supply - _sellAmount;
     (result, precision) = power(
