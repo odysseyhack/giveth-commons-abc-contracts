@@ -6,10 +6,10 @@ import "../contracts/CommonsToken.sol";
 
 contract CommonsTokenTest {
   function testItDoesAThing() public {
-    CommonsToken token = CommonsToken(DeployedAddresses.CommonsToken());
+    /*CommonsToken token = CommonsToken(DeployedAddresses.CommonsToken());
 
     token.something(53);
 
-    Assert.equal(token.getSomething(), 53, "It should be 53");
+    Assert.equal(token.getSomething(), 53, "It should be 53");*/
   }
 }

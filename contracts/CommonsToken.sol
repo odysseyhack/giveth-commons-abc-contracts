@@ -2,7 +2,7 @@ pragma solidity ^0.5.0;
 
 import "./ERC20BondingToken.sol";
 
-contract TestERC20BondingToken is ERC20BondingToken {
+contract CommonsToken is ERC20BondingToken {
 
   ERC20 reserveToken;
   // uint32 reserveRatio;
