@@ -1,5 +1,8 @@
 pragma solidity ^0.5.0;
 
+import "../Initializable.sol";
+import "../access/roles/MinterRole.sol";
+
 import "./ERC20.sol";
 
 /**
