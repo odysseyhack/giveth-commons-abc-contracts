@@ -17,7 +17,6 @@ module.exports = async function(deployer, networks, accounts) {
   await deployer.deploy(ReserveTokenMock, accounts[0]);
   ReserveTokenMockInstance = await ReserveTokenMock.deployed();
 
-console.log(FundingPoolMockInstance.address)
   await deployer.deploy(CommonsToken,
     ReserveTokenMockInstance.address,
     reserveRatio,
@@ -26,22 +25,6 @@ console.log(FundingPoolMockInstance.address)
     p0,
     initialRaise,
     FundingPoolMockInstance.address,
-    friction
+    friction, {gas: 10000000}
     );
 };
-
-
-//
-// deployer.deploy(HoldingRole).then(function(holdingRoleInstance) {
-//     let holdingRoleAddress = holdingRoleInstance.address
-//     return deployer.deploy(Treasury, holdingRoleAddress).then(function(treasuryInstance) {
-//       let treasuryAddress = treasuryInstance.address
-//       return deployer.deploy(SubsidiaryRegistry, treasuryAddress, holdingRoleAddress, defaultZeroBalance).then(function(subsidiaryRegistryInstance) {
-//         let subsidiaryRegistryAddress = subsidiaryRegistryInstance.address
-//         return deployer.deploy(Settlement, treasuryAddress, subsidiaryRegistryAddress, holdingRoleAddress).then(function(settlementInstance) {
-//           let settlementAddress = settlementInstance.address
-//           return deployer.deploy(IntercompanyPurchaseOrders, treasuryAddress, subsidiaryRegistryAddress, holdingRoleAddress).then(function(intercompanyPurchaseOrdersInstance) {
-//             let intercompanyPurchaseOrdersAddress= intercompanyPurchaseOrdersInstance.address
-//             treasuryInstance.addTrustedContract(settlementAddress)
-//             treasuryInstance.addTrustedContract(subsidiaryRegistryAddress)
-//             return
