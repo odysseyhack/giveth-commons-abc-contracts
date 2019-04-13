@@ -1,4 +1,4 @@
-const CommonsToken = artifact.require("./CommonsToken.sol");
+// const CommonsToken = artifact.require("CommonsToken");
 
 contract("CommonsToken", accounts => {
   it("some test case", async () => {
