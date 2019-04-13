@@ -1,8 +1,6 @@
 {
-  "name": "giveth-commons-abc-contracts",
+  "name": "@giveth/commons-abc-contracts",
   "version": "0.1.0",
-  "private": true,
-  "license": "MIT",
   "devDependencies": {
     "chai": "^4.2.0",
     "concurrently": "^4.1.0",
