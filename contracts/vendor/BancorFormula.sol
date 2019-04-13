@@ -202,9 +202,9 @@ limitations under the License. */
 
 pragma solidity ^0.5.0;
 
-import "openzeppelin-eth/contracts/math/SafeMath.sol";
+import "./math/SafeMath.sol";
 
-import "./math/Power.sol";
+import "./Power.sol";
 
  /**
  * @title Bancor formula by Bancor

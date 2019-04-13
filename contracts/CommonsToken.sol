@@ -4,6 +4,9 @@ import "./ERC20BondingToken.sol";
 
 contract CommonsToken is ERC20BondingToken {
 
+  // =======================================
+  // == STORAGE
+  // =======================================
   ERC20 public reserveToken;
   uint256 public theta;
   uint256 public p0;
@@ -41,6 +44,18 @@ contract CommonsToken is ERC20BondingToken {
   //  * @param _friction fee (percentage in ppm) which is paid to the funding pool, every time a person calls curvedBurn
   //  * @param _gasPrice mitigation against front-running attacks by forcing all users to pay the same gas price
   //  */
+
+  modifier notHatchingPhase() {
+    require(!isInHatchingPhase, "Must not be in hatching phase");
+    _;
+  }
+
+  modifier hatchingPhase() {
+    require(isInHatchingPhase, "Must be in hatcing phase");
+    _;
+  }
+
+  // initialize the curve
   function initialize(
     address _reserveToken,
     uint32 _reserveRatio,
@@ -70,18 +85,24 @@ contract CommonsToken is ERC20BondingToken {
     friction = _friction;
   }
 
-  function mint(uint256 amount) public {
-    require(!isInHatchingPhase);
+  function mint(uint256 amount)
+    public
+    notHatchingPhase
+  {
     _curvedMint(amount);
   }
 
-  function burn(uint256 amount) public {
-    require(!isInHatchingPhase);
+  function burn(uint256 amount)
+    public
+    notHatchingPhase
+  {
     _curvedBurn(amount);
   }
 
-  function hatchContribute(uint256 value) public {
-    require(isInHatchingPhase);
+  function hatchContribute(uint256 value)
+    public
+    hatchingPhase
+  {
     uint256 contributed;
     if(raised < initialRaise) {
       contributed = value;
@@ -99,9 +120,9 @@ contract CommonsToken is ERC20BondingToken {
       // Once we reached the hatch phase, we allow the fundingPool
       // to pull theta times the balance into their control.
       // 1 - theta is reserve.
-      uint256 toBeTransfered = initialRaise * theta / denominator;
-      _burn(address(this), toBeTransfered);
-      _mint(fundingPool, toBeTransfered);
+      uint256 toBeTransfered = initialRaise * theta /
+      _burn(address(this), to);
+      reserveToken.approve(fundingPool, reserveToken.balanceOf(address(this)) * (theta / denominator));
     }
     // We mint to our account.
     // Theoretically, the price is increasing (up to P1), but since we are in the hatching phase, the
@@ -111,8 +132,10 @@ contract CommonsToken is ERC20BondingToken {
     initialContributions[msg.sender].contributed += contributed;
   }
 
-  function fundsAllocated(uint value) public {
-    require(!isInHatchingPhase);
+  function fundsAllocated(uint value)
+    public
+    notHatchingPhase
+  {
     require(msg.sender == fundingPool);
     // TODO: now, we unlock based on 1 / 1 proportion.
     // This could also be another proportion:
@@ -123,8 +146,10 @@ contract CommonsToken is ERC20BondingToken {
     }
   }
 
-  function claimTokens() public {
-    require(!isInHatchingPhase);
+  function claimTokens()
+    public
+    notHatchingPhase
+  {
     require(initialContributions[msg.sender].contributed != 0);
     require(initialContributions[msg.sender].percentageTokenUnlocked < totalUnlocked);
     // allocationPercentage = (initialContributions[msg.sender].contributed / initialRaise)

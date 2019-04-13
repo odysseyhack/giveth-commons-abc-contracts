@@ -7,9 +7,7 @@ let fundingPool // tbd
 let friction = 20000 // 2% in ppm
 let gasPrice = 15000000000 // 15gwei
 
-//could not find artifacts for node_modules/openzeppelin-eth/contracts/token/ERC20/ERC20Mintable from any sources
-
-var ReserveTokenMock = artifacts.require("./node_modules/openzeppelin-eth/contracts/token/ERC20/ERC20Mintable");
+var ReserveTokenMock = artifacts.require("ERC20Mintable");
 var CommonsToken = artifacts.require("CommonsToken");
 var FundingPoolMock = artifacts.require("FundingPoolMock");
 
