@@ -30,9 +30,9 @@ module.exports = {
     solc: {
       version: '0.5.0',
       optimizer: {
-            enabled: true,
-            runs: 200
-        }
+        enabled: true, // Default: false
+        runs: 1000     // Default: 200
+      }
     }
   }
 };
