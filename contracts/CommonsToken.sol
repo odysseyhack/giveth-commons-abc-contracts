@@ -4,14 +4,14 @@ import "./ERC20BondingToken.sol";
 
 contract CommonsToken is ERC20BondingToken {
 
-  ERC20 reserveToken;
-  // uint32 reserveRatio;
-  // uint256 theta;
-  // uint256 p0;
-  uint256 initialRaise;
-  // address fundingPool;
-  // uint256 friction;
-  // uint256 gasPrice;
+  ERC20 public reserveToken;
+  uint256 public theta;
+  uint256 public p0;
+  uint256 public initialRaise;
+  uint256 public raised;
+  address public fundingPool;
+  uint256 public friction;
+  bool public isInHatchingPhase;
 
   // TODO: should we have this here?
   uint256 totalUnlocked;
@@ -54,23 +54,25 @@ contract CommonsToken is ERC20BondingToken {
     if(raised < initialRaise) {
       contributed = value;
       raised += contributed;
-      // We call the DAI contract and try to pull DAI to this contract. 
+      // We call the DAI contract and try to pull DAI to this contract.
       // Reverts if there is no approval.
       reserveToken.transferFrom(msg.sender, address(this), contributed);
     } else {
       contributed = initialRaise - raised;
       raised = initialRaise;
       isInHatchingPhase = false;
-      // We call the DAI contract and try to pull DAI to this contract. 
+      // We call the DAI contract and try to pull DAI to this contract.
       // Reverts if there is no approval.
       reserveToken.transferFrom(msg.sender, address(this), contributed);
-      // Once we reached the hatch phase, we allow the fundingPool 
+      // Once we reached the hatch phase, we allow the fundingPool
       // to pull theta times the balance into their control.
       // 1 - theta is reserve.
+      uint256 toBeTransfered = initialRaise * theta /
+      _burn(address(this), to)
       reserveToken.approve(fundingPool, reserveToken.balanceOf(address(this)) * (theta / denominator));
     }
-    // We mint to our account. 
-    // Theoretically, the price is increasing (up to P1), but since we are in the hatching phase, the 
+    // We mint to our account.
+    // Theoretically, the price is increasing (up to P1), but since we are in the hatching phase, the
     // actual price stays P0.
     uint256 amountToMint = calculateCurvedMintReturn(contributed);
     _mint(address(this), amountToMint);
@@ -80,8 +82,8 @@ contract CommonsToken is ERC20BondingToken {
   function fundsAllocated(uint value) public {
     require(!isInHatchingPhase);
     require(msg.sender == fundingPool);
-    // TODO: now, we unlock based on 1 / 1 proportion. 
-    // This could also be another proportion: 
+    // TODO: now, we unlock based on 1 / 1 proportion.
+    // This could also be another proportion:
     // -- i.e. 100.000 funds spend => 50000 worth of funds unlocked
     // We should only update the total unlocked when it is less than 100%
     if(totalUnlocked < denominator) {
@@ -96,7 +98,7 @@ contract CommonsToken is ERC20BondingToken {
     // allocationPercentage = (initialContributions[msg.sender].contributed / initialRaise)
     // -- percentage of the total contribution during the hatch phase of the msg.sender
     // totalAllocated = allocationPercentage * p0 == total tokens allocated to hatcher (locked + unlocked)
-    // toBeUnlockedPPM = totalUnlocked - initialContributionRegistry[msg.sender.percentageUnlocked 
+    // toBeUnlockedPPM = totalUnlocked - initialContributionRegistry[msg.sender.percentageUnlocked
     // -- percentage in ppm that we want to unlock
     // toBeUnlockedPercentage = toBeUnlockedPPM / denominator
     // toBeUnlocked = Percentage * totalAllocated
