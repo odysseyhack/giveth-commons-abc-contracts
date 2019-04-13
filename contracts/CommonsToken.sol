@@ -55,8 +55,7 @@ contract CommonsToken is ERC20BondingToken {
     _;
   }
 
-  // initialize the curve
-  function initialize(
+  constructor(
     address _reserveToken,
     uint32 _reserveRatio,
     uint256 _gasPrice,
@@ -65,24 +64,25 @@ contract CommonsToken is ERC20BondingToken {
     uint256 _initialRaise,
     address _fundingPool,
     uint256 _friction
-  ) initializer public {
-    ERC20BondingToken.initialize(
-      _reserveRatio,
+  ) public ERC20BondingToken(
+      reserveRatio,
       _gasPrice,
       _reserveToken,
       friction,
       denominator,
       _fundingPool
-    );
-    require(theta <= denominator && theta >= 1, "Theta should be a percentage in ppm");
-    require(fundingPool != address(0));
-    require(_friction <= denominator, "Friction should be a percentage in ppm");
-    reserveToken = ERC20(_reserveToken);
-    theta = _theta;
-    p0 = _p0;
-    initialRaise = _initialRaise;
-    fundingPool = _fundingPool;
-    friction = _friction;
+      )
+  {
+      require(theta <= denominator, "Theta should be a percentage in ppm");
+      require(_reserveToken != address(0), "Reservetoken is not correctly defined");
+      require(_fundingPool != address(0), "Fundingpool is not correctly defined");
+      require(_friction <= denominator, "Friction should be a percentage in ppm");
+      reserveToken = ERC20(_reserveToken);
+      theta = _theta;
+      p0 = _p0;
+      initialRaise = _initialRaise;
+      fundingPool = _fundingPool;
+      friction = _friction;
   }
 
   function mint(uint256 amount)

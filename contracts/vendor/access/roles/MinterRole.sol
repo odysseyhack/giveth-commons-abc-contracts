@@ -1,10 +1,9 @@
 pragma solidity ^0.5.0;
 
-import "../../Initializable.sol";
 import "../Roles.sol";
 
 
-contract MinterRole is Initializable {
+contract MinterRole {
     using Roles for Roles.Role;
 
     event MinterAdded(address indexed account);
@@ -12,7 +11,7 @@ contract MinterRole is Initializable {
 
     Roles.Role private _minters;
 
-    function initialize(address sender) public initializer {
+    constructor(address sender) public {
         if (!isMinter(sender)) {
             _addMinter(sender);
         }
@@ -44,6 +43,4 @@ contract MinterRole is Initializable {
         _minters.remove(account);
         emit MinterRemoved(account);
     }
-
-    uint256[50] private ______gap;
 }

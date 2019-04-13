@@ -10,22 +10,24 @@ const friction = 20000; // 2% in ppm
 const gasPrice = 15000000000; // 15gwei
 
 
-module.exports = async function(deployer) {
+module.exports = async function(deployer, networks, accounts) {
   await deployer.deploy(FundingPoolMock);
-  await FundingPoolMock.deployed();
+  FundingPoolMockInstance = await FundingPoolMock.deployed();
 
-  await deployer.deploy(ReserveTokenMock);
-  await ReserveTokenMock.deployed();
+  await deployer.deploy(ReserveTokenMock, accounts[0]);
+  ReserveTokenMockInstance = await ReserveTokenMock.deployed();
 
+console.log(FundingPoolMockInstance.address)
   await deployer.deploy(CommonsToken,
-    ReserveTokenMock.address,
+    ReserveTokenMockInstance.address,
     reserveRatio,
+    gasPrice,
     theta,
     p0,
     initialRaise,
-    FundingPoolMock.address,
-    friction,
-    gasPrice);
+    FundingPoolMockInstance.address,
+    friction
+    );
 };
 
 

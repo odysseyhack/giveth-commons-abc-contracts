@@ -1,7 +1,6 @@
 pragma solidity ^0.5.0;
 
 import "./vendor/ERC20/ERC20.sol";
-import "./vendor/ERC20/ERC20Detailed.sol";
 import "./vendor/BancorFormula.sol";
 
 /**
@@ -11,7 +10,7 @@ import "./vendor/BancorFormula.sol";
  * https://github.com/bancorprotocol/contracts
  * https://github.com/ConsenSys/curationmarkets/blob/master/CurationMarkets.sol
  */
-contract BondingCurveToken is Initializable, ERC20, BancorFormula {
+contract BondingCurveToken is ERC20, BancorFormula {
   /*
     reserve ratio, represented in ppm, 1-1000000
     1/3 corresponds to y= multiple * x^2
@@ -35,7 +34,7 @@ contract BondingCurveToken is Initializable, ERC20, BancorFormula {
   event CurvedMint(address sender, uint256 amount, uint256 deposit);
   event CurvedBurn(address sender, uint256 amount, uint256 reimbursement);
 
-  function initialize(uint32 _reserveRatio, uint256 _gasPrice) initializer public payable {
+  constructor(uint32 _reserveRatio, uint256 _gasPrice) public {
     reserveRatio = _reserveRatio;
     gasPrice = _gasPrice;
   }

@@ -9,7 +9,7 @@ import "./BondingCurveToken.sol";
  * @title Token Bonding Curve
  * @dev Token backed Bonding curve contract
  */
-contract ERC20BondingToken is Initializable, BondingCurveToken {
+contract ERC20BondingToken is BondingCurveToken {
 
   ERC20 reserveToken;
   uint256 friction;
@@ -32,15 +32,16 @@ contract ERC20BondingToken is Initializable, BondingCurveToken {
   //  * @param _friction fee (percentage in ppm) which is paid to the funding pool, every time a person calls curvedBurn
   //  * @param _gasPrice mitigation against front-running attacks by forcing all users to pay the same gas price
   //  */
-  function initialize(
+constructor(
     uint32 _reserveRatio,
     uint256 _gasPrice,
     address _reserveToken,
     uint256 _friction,
     uint256 _denominator,
     address _fundingPool
-  ) initializer public {
-    BondingCurveToken.initialize(_reserveRatio, _gasPrice);
+  ) public
+    BondingCurveToken(_reserveRatio, _gasPrice)
+  {
     reserveToken = ERC20(_reserveToken);
     friction = _friction;
     denominator = _denominator;
