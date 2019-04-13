@@ -2,12 +2,17 @@ const ReserveTokenMock = artifacts.require("ERC20Mintable");
 const CommonsToken = artifacts.require("CommonsToken");
 const FundingPoolMock = artifacts.require("FundingPoolMock");
 
-const reserveRatio = 142857; // kappa ~ 6
-const theta = 350000; // 35% in ppm
-const p0 =  1;
-const initialRaise = 300000;
-const friction = 20000; // 2% in ppm
-const gasPrice = 15000000000; // 15gwei
+// Curve parameters:
+const reserveRatio = 142857;  // Kappa (~ 6)
+const theta = 350000;         // 35% in ppm
+const p0 =  1;                // Price of internal token in external tokens.
+const initialRaise = 300000;  // Raise amount in external tokens.
+const friction = 20000;       // 2% in ppm
+
+const gasPrice = 15000000000; // 15 gwei
+
+const duration = 3024000000000000; // ~5 weeks.
+const minExternalContibution = 100000;
 
 
 module.exports = async function(deployer, networks, accounts) {
@@ -18,13 +23,16 @@ module.exports = async function(deployer, networks, accounts) {
   ReserveTokenMockInstance = await ReserveTokenMock.deployed();
 
   await deployer.deploy(CommonsToken,
-    ReserveTokenMockInstance.address,
-    reserveRatio,
-    gasPrice,
-    theta,
-    p0,
-    initialRaise,
-    FundingPoolMockInstance.address,
-    friction, {gas: 10000000}
-    );
+    ReserveTokenMockInstance.address, // _externalToken
+    reserveRatio,                     // _reserveRatio
+    gasPrice,                         // _gasPrice
+    theta,                            // _theta
+    p0,                               // _p0
+    initialRaise,                     // _initialRaise
+    FundingPoolMockInstance.address,  // _fundingPool
+    friction,                         // _friction
+    duration,                         // _duration
+    minExternalContibution,           // _minExternalContribution
+    { gas: 10000000 }
+  );
 };
