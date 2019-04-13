@@ -1,9 +1,81 @@
-// const CommonsToken = artifact.require("CommonsToken");
+const { BN, constants, expectEvent, shouldFail } = require('openzeppelin-test-helpers');
 
-contract("CommonsToken", accounts => {
-  it("some test case", async () => {
+const CommonsToken = artifacts.require("CommonsToken.sol");
+const FundingPoolMock = artifacts.require("FundingPoolMock.sol");
+const ReserveTokenMock = artifacts.require("./contracts/vendor/ERC20/ERC20.sol");
+
+contract("CommonsToken", ([reserveTokenMinter, contractCreator, hatcherOne, hatcherTwo, lateInvestor]) => {
+  const reserveRatio = 142857; // kappa ~ 6
+  const theta = 350000; // 35% in ppm
+  const p0 =  1;
+  const initialRaise = 300000;
+  const friction = 20000; // 2% in ppm
+  const gasPrice = 15000000000; // 15gwei
+  beforeEach(async function() {
+    this.fundingPool = await FundingPoolMock.new();
+    this.reserveToken = await ReserveTokenMock.new(reserveTokenMinter)
+    this.commonsToken = await CommonsToken.new(
+      this.reserveToken.address,
+      gasPrice,
+      theta,
+      p0,
+      initialRaise,
+      this.fundingPool.address,
+      friction
+    )
+  })
+  describe('hatchContribute', function () {
+    describe('When we are in the hatch phase', function() {
+      describe('When the contribution does not reach the initialRaise', function() {
+        describe('When the commonToken can pull the reserve token', function() {
+          // increase raised
+          // pull reservetoken from the contributer to our account
+          // set the initialContributions for the hatcher
+          // mint bonding curve tokens to the bondingcurve contract
+        })
+        describe("When the commonToken cannot pull the reserve token", function() {
+          //revert
+        })
+      })
+      describe("When the contribution reaches the initial raise", function() {
+        // increase raised
+        // pull reservetoken from the contributer to our account
+        // set the initialContributions for the hatcher
+        // mint bonding curve tokens to the bondingcurve contract
+      })
+      describe("When the contribution reaches over the initial raise", function() {
+        // increase raised
+        // pull reservetoken from the contributer to our account
+        // set the initialContributions for the hatcher
+        // mint bonding curve tokens to the bondingcurve contract
+      })
+    })
+    describe("When we are not in the hatch phase", function() {
+
+    })
   });
-});
+
+  describe("fundsAllocated", function() {
+    describe("When the sender is the fundingPool", function() {
+      describe("When we have not yet allocated all the initial funds", function() {
+        describe("When we don't allocate all the initial funds", function() {
+          //totalUnlocked increases to less than 100%
+        })
+        describe("When we allocate all the initial funds", function() {
+          //totalUnlocked 100%
+
+        })
+        describe("When we allocate more than the initial funds", function() {
+          //totalUnlocked 100%
+        })
+      })
+
+    })
+    describe("When the sender is not the fundingPool", function() {
+      //reverts
+
+    })
+  })
 
 // scenarios
 // 1. Init
