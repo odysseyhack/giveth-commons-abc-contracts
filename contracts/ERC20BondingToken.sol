@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity ^0.5.0;
 
 import "openzeppelin-eth/contracts/token/ERC20/ERC20.sol";
 import "zos-lib/contracts/Initializable.sol";
@@ -21,7 +21,7 @@ contract ERC20BondingToken is Initializable, BondingCurveToken {
   uint256 public friction;
   bool public isInHatchingPhase;
 
-  uint256 private DENOMINATOR = 1000000;
+  uint256 public denominator = 1000000;
 
   struct initialContributionRegistry {
     uint256 contributed;
@@ -31,22 +31,22 @@ contract ERC20BondingToken is Initializable, BondingCurveToken {
   mapping(address => initialContributionRegistry) initialContributions;
 
 
-  /**
-   * @dev initialize augmented bonding curve
-   * @param reserveToken this is the token which is being allocated as a reserve pool + funding pool (xDai)
-   * @param get's used by the bancorFormula and is equal to the connectorWeight (CW).
-   *  The connectorWeight is related to Kappa as CW = 1 / (k+1). 
-   *  Source: 
-   *  https://medium.com/@billyrennekamp/converting-between-bancor-and-bonding-curve-price-formulas-9c11309062f5. 
-   *  Note: 142857 ~> kappa = 6
-   * @param _theta this is the percentage (in ppm) of funds that gets allocated to the funding pool
-   * @param _p0 the price at which hatchers can buy into the Curve => the price in reservetoken (dai) per native token
-   * @param _toRaise (initialRiase, d0, in DAI), the goal of the Hatch phase
-   * @param _fundingPool the address (organization, DAO, entity) to which we transfer theta times the contribution 
-   *  during the hatching phase
-   * @param _friction fee (percentage in ppm) which is paid to the funding pool, every time a person calls curvedBurn
-   * @param _gasPrice mitigation against front-running attacks by forcing all users to pay the same gas price
-   */
+  // /**
+  //  * @dev initialize augmented bonding curve
+  //  * @param _reserveToken this is the token which is being allocated as a reserve pool + funding pool (xDai)
+  //  * @param get's used by the bancorFormula and is equal to the connectorWeight (CW).
+  //  *  The connectorWeight is related to Kappa as CW = 1 / (k+1). 
+  //  *  Source: 
+  //  *  https://medium.com/@billyrennekamp/converting-between-bancor-and-bonding-curve-price-formulas-9c11309062f5. 
+  //  *  Note: 142857 ~> kappa = 6
+  //  * @param _theta this is the percentage (in ppm) of funds that gets allocated to the funding pool
+  //  * @param _p0 the price at which hatchers can buy into the Curve => the price in reservetoken (dai) per native token
+  //  * @param _initialRaise (initialRaise, d0, in DAI), the goal of the Hatch phase
+  //  * @param _fundingPool the address (organization, DAO, entity) to which we transfer theta times the contribution 
+  //  *  during the hatching phase
+  //  * @param _friction fee (percentage in ppm) which is paid to the funding pool, every time a person calls curvedBurn
+  //  * @param _gasPrice mitigation against front-running attacks by forcing all users to pay the same gas price
+  //  */
   function initialize(
     address _reserveToken,
     uint32 _reserveRatio,
@@ -57,9 +57,9 @@ contract ERC20BondingToken is Initializable, BondingCurveToken {
     uint256 _friction,
     uint256 _gasPrice
   ) initializer public {
-    require(theta <= DENOMINATOR && theta >= 1, "Theta should be a percentage in ppm");
+    require(theta <= denominator && theta >= 1, "Theta should be a percentage in ppm");
     require(fundingPool != address(0));
-    require(_friction <= DENOMINATOR, "Friction should be a percentage in ppm");
+    require(_friction <= denominator, "Friction should be a percentage in ppm");
     reserveToken = ERC20(_reserveToken);
     theta = _theta;
     p0 = _p0;
@@ -76,7 +76,7 @@ contract ERC20BondingToken is Initializable, BondingCurveToken {
    */
   function _curvedMint(uint256 amount) internal returns (uint256) {
     require(!isInHatchingPhase);
-    require(reserveToken.transferFrom(msg.sender, this, amount));
+    require(reserveToken.transferFrom(msg.sender, address(this), amount));
     super._curvedMint(amount);
   }
 
@@ -88,12 +88,12 @@ contract ERC20BondingToken is Initializable, BondingCurveToken {
   function _curvedBurn(uint256 amount) internal returns (uint256) {
     require(!isInHatchingPhase);
     uint256 reimbursement = super._curvedBurn(amount);
-    uint256 transferable = (1 - (friction / DENOMINATOR) * reimbursement);
+    uint256 transferable = (1 - (friction / denominator) * reimbursement);
     reserveToken.transfer(msg.sender, transferable);
     reserveToken.approve(fundingPool, reimbursement - transferable);
   }
 
   function poolBalance() public view returns(uint256) {
-    return reserveToken.balanceOf(this);
+    return reserveToken.balanceOf(address(this));
   }
 }
