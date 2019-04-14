@@ -1,9 +1,11 @@
 const { BN, constants, expectEvent, shouldFail } = require('openzeppelin-test-helpers');
 
+
 const CommonsToken = artifacts.require("CommonsToken.sol");
 const FundingPoolMock = artifacts.require("FundingPoolMock.sol");
 const ReserveTokenMock = artifacts.require("./contracts/vendor/ERC20/ERC20Mintable.sol");
 
+const DENOMINATOR_PPM = 1000000;
 contract("CommonsToken", ([reserveTokenMinter, contractCreator, hatcherOne, hatcherTwo, lateInvestor]) => {
   const reserveRatio = 142857; // kappa ~ 6
   const theta = 350000; // 35% in ppm
@@ -30,8 +32,8 @@ contract("CommonsToken", ([reserveTokenMinter, contractCreator, hatcherOne, hatc
       minimalContribution,
       { gas: 10000000 }
     );
-    await this.reserveToken.mint(hatcherOne, 10000);
-    await this.reserveToken.mint(hatcherTwo, 10000);
+    await this.reserveToken.mint(hatcherOne, 1000000);
+    await this.reserveToken.mint(hatcherTwo, 1000000);
   })
 
   describe('hatchContribute', function () {
@@ -42,13 +44,9 @@ contract("CommonsToken", ([reserveTokenMinter, contractCreator, hatcherOne, hatc
           describe("When there is sufficient contribution", function() {
             describe('When the commonToken can pull the external token', function() {
               beforeEach(async function() {
-                console.log(await this.reserveToken.balanceOf(hatcherOne));
-                //  await this.reserveToken.approve(this.reserveToken.address, amountToFundExtern);
-                console.log(amountToFundExtern)
-                await this.reserveToken.transfer(hatcherTwo, 200, {from: hatcherOne});
-                console.log(await this.reserveToken.balanceOf(hatcherOne))
-                console.log(await this.reserveToken.balanceOf(hatcherTwo))
-              //  await this.commonsToken.hatchContribute(amountToFundExtern, {from: hatcherOne});
+                // problem. The msg.sender is the smart contract.
+                await this.reserveToken.approve(this.commonsToken.address, amountToFundExtern, {from: hatcherOne});
+                await this.commonsToken.hatchContribute(amountToFundExtern, {from: hatcherOne});
               })
 
               it("Should have increased the total amount raised", async function() {
@@ -62,21 +60,28 @@ contract("CommonsToken", ([reserveTokenMinter, contractCreator, hatcherOne, hatc
               })
 
               it("Should have set the initial external contributions for the hatcher", async function() {
-                let initialContributions = await this.commonsToken.initialContributions(hatcherOne)[0];
-                assert.equal(initialContributions, amountToFundExtern);
+                let initialContributions = await this.commonsToken.initialContributions(hatcherOne);
+                let paidExternal = initialContributions.paidExternal;
+                assert.equal(paidExternal, amountToFundExtern);
               })
 
               it("Should have set the locked internal tokens for the hatcher", async function() {
-                let lockedInternalTokens = await this.commonsToken.initialContributions(hatcherOne)[1];
-                assert.equal(lockedInternalTokens, amountToFundExtern * p0);
+                let initialContributions = await this.commonsToken.initialContributions(hatcherOne);
+                let lockedInternal = initialContributions.lockedInternal;
+                assert.equal(lockedInternal, amountToFundExtern * p0);
               })
             })
-            describe("When the commonToken cannot pull the reserve token", function() {
-              //revert
+            describe("When the commonToken cannot pull the reserve token", async function() {
+              it('reverts', async function() {
+                await shouldFail.reverting(this.commonsToken.hatchContribute(amountToFundExtern, {from: hatcherOne}))
+              })
             })
           })
           describe("When there is no sufficient contribution", function() {
-
+            const amountToFundExtern = 1
+            it('reverts', async function() {
+              await shouldFail.reverting(this.commonsToken.hatchContribute(amountToFundExtern, {from: hatcherOne}))
+            })
           })
         })
         describe("When the contribution reaches the initial raise", function() {
@@ -86,18 +91,58 @@ contract("CommonsToken", ([reserveTokenMinter, contractCreator, hatcherOne, hatc
           // mint bonding curve tokens to the bondingcurve contract
         })
         describe("When the contribution reaches over the initial raise", function() {
-          // increase raised
-          // pull reservetoken from the contributer to our account
-          // set the initialContributions for the hatcher
-          // mint bonding curve tokens to the bondingcurve contract
+          const amountToFundExtern = 400000;
+          beforeEach(async function() {
+            await this.reserveToken.approve(this.commonsToken.address, amountToFundExtern, {from: hatcherOne});
+            await this.commonsToken.hatchContribute(amountToFundExtern, {from: hatcherOne});
+          })
+
+          it("Should have increased the total amount raised", async function() {
+            let raisedExternal = await this.commonsToken.raisedExternal()
+            assert.equal(raisedExternal, initialRaise);
+          })
+
+          it("Should have allocated the external tokens to the bonding curve", async function() {
+            let externalTokensOwned = await this.reserveToken.balanceOf(this.commonsToken.address);
+            assert.equal(externalTokensOwned, initialRaise);
+          })
+
+          it("Should have set the initial external contributions for the hatcher", async function() {
+            let initialContributions = await this.commonsToken.initialContributions(hatcherOne);
+            let paidExternal = initialContributions.paidExternal;
+            assert.equal(paidExternal, initialRaise);
+          })
+
+          it("Should have minted the correct amount to the fundingPool", async function() {
+            let internalTokensInFundingPool = await this.commonsToken.balanceOf(this.fundingPool.address)
+            assert.equal(internalTokensInFundingPool, (initialRaise / p0 ) * (theta  / DENOMINATOR_PPM));
+          })
+
+          it("Should have minted the correct amount to the reserve", async function() {
+            let internalTokensReserve = await this.commonsToken.balanceOf(this.commonsToken.address);
+            assert.equal(internalTokensInFundingPool, (initialRaise / p0 ) * (1 - (theta  / DENOMINATOR_PPM)));
+          })
+
+          it("Should have ended the hatching phase", async function() {
+            let isHatched = await this.isHatched();
+            assert.isTrue(isHatched);
+          })
         })
       })
       describe("When we are outside the duration deadline", function() {
-        //reverts
+        // do something with the time
       })
     })
     describe("When we are not in the hatch phase", function() {
-
+      const amountToFundExtern = 400000;
+      beforeEach(async function() {
+        // problem. The msg.sender is the smart contract.
+        await this.reserveToken.approve(this.commonsToken.address, amountToFundExtern, {from: hatcherOne});
+        await this.commonsToken.hatchContribute(amountToFundExtern, {from: hatcherOne});
+      })
+      it('reverts', async function() {
+        await shouldFail.reverting(this.commonsToken.hatchContribute(amountToFundExtern, {from: hatcherOne}))
+      })
     })
   });
 

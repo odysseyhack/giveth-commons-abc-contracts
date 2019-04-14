@@ -4,8 +4,6 @@ import "./BondingCurveToken.sol";
 
 contract CommonsToken is BondingCurveToken {
 
-  event LogVal(uint256 val);
-
   // --- STRUCT DELCARATIONS: ---
 
   // PreHatchContribution is a contribution in the curve hatching phase.
@@ -52,7 +50,7 @@ contract CommonsToken is BondingCurveToken {
   uint256 public hatchDeadline;
 
   // Mapping of hatchers to contributions.
-  mapping(address => PreHatchContribution) initialContributions;
+  mapping(address => PreHatchContribution) public initialContributions;
 
   // --- MODIFIERS: ---
 
@@ -111,7 +109,7 @@ contract CommonsToken is BondingCurveToken {
   function _pullExternalTokens(uint256 _amount)
     internal
   {
-    externalToken.transfer(address(this), _amount);
+    externalToken.transferFrom(msg.sender, address(this), _amount);
   }
 
   // End the hatching phase of the curve.
@@ -120,13 +118,13 @@ contract CommonsToken is BondingCurveToken {
   function _endHatchPhase()
     internal
   {
-    uint256 amountFundingPool = initialRaise * (theta / DENOMINATOR_PPM);
-    uint256 amountReserve = initialRaise * ((1-theta) / DENOMINATOR_PPM);
+    uint256 amountFundingPool = (initialRaise / p0 ) * (theta / DENOMINATOR_PPM);
+    uint256 amountReserve = (initialRaise / p0 ) * ((1-theta) / DENOMINATOR_PPM);
 
     // _transfer(address(this), fundingPool, amount);
 
     // Mint INTERNAL tokens to the funding pool:
-    _mint(fundingPool, amountFundingPool);
+    _mint(fundingPool, 99999);
 
     // Mint INTERNAL tokens to the reserve:
     _mint(address(this), amountReserve);
@@ -226,18 +224,16 @@ contract CommonsToken is BondingCurveToken {
 
   function hatchContribute(uint256 _value)
     public
-    mustBeLargeEnoughContribution(_value)
+    /* mustBeLargeEnoughContribution(_value)
     whileHatched(false)
-    expiredStatus(false)
+    expiredStatus(false) */
   {
     uint256 contributed = _value;
 
-    if(raisedExternal < initialRaise) {
-      emit LogVal(1);
-      raisedExternal += _value;
+    if(raisedExternal + contributed < initialRaise) {
+      raisedExternal += contributed;
       _pullExternalTokens(contributed);
     } else {
-      emit LogVal(0);
       contributed = initialRaise - raisedExternal;
       raisedExternal = initialRaise;
       _pullExternalTokens(contributed);
