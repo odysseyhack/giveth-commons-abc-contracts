@@ -2,10 +2,17 @@ pragma solidity ^0.5.0;
 
 import "./BondingCurveToken.sol";
 
+
+/**
+ * @title CommonsToken
+ * @author Rinke Hendriksen (@eknir) and Pavle Batuta (@flooffieban), during the Oddyssey hackathon in Groningen '19 (part of team: Giveth - Crowdfunding the commons)
+ * @notice This smart contract implements the augmented bonding curve design principle (described here: https://medium.com/@abbey_titcomb/3f1f7c1fa751
+ * @dev we use the BancorFormule to define the slope of the curve, an ERC20 to model the internal token (minted by the bonding curve) and an ERC20 to model the external (stable currency) token
+ */
 contract CommonsToken is BondingCurveToken {
 
-  // PreHatchContribution is a contribution in the curve hatching phase.
-  // Each contribution is an amount of reserve tokens.
+  // PreHatchContribution keeps track of the contribution of a hatcher during the hatchin phase:
+  // paidExternal: the amount paid, denominated in external currency
   // Each contribution also tracks the percentage of tokens that was unlocked.
   struct PreHatchContribution {
     uint256 paidExternal;
@@ -119,7 +126,6 @@ contract CommonsToken is BondingCurveToken {
     uint256 amountFundingPool = ((initialRaise / p0) * theta ) / DENOMINATOR_PPM;
     uint256 amountReserve = (initialRaise / p0) * (DENOMINATOR_PPM - theta) / DENOMINATOR_PPM;
 
-    emit Log(amountFundingPool);
     // _transfer(address(this), fundingPool, amount);
 
     // Mint INTERNAL tokens to the funding pool:
