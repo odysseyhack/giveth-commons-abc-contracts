@@ -4,9 +4,6 @@ import "./BondingCurveToken.sol";
 
 contract CommonsToken is BondingCurveToken {
 
-  event Log(uint256 test);
-  // --- STRUCT DELCARATIONS: ---
-
   // PreHatchContribution is a contribution in the curve hatching phase.
   // Each contribution is an amount of reserve tokens.
   // Each contribution also tracks the percentage of tokens that was unlocked.

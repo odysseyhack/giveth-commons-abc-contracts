@@ -1,3 +1,4 @@
+// ReserveTokenMock will be an existing smart contract (DAI)
 const ReserveTokenMock = artifacts.require("ERC20Mintable");
 const CommonsToken = artifacts.require("CommonsToken");
 const FundingPoolMock = artifacts.require("FundingPoolMock");
@@ -35,4 +36,7 @@ module.exports = async function(deployer, networks, accounts) {
     minExternalContibution,           // _minExternalContribution
     { gas: 10000000 }
   );
+
+  // needed for demonstration purposes => to show we can purchase tokens during the hatchin phase
+  await ReserveTokenMockInstance.mint(accounts[0], 100000, {from: accounts[0]})
 };
