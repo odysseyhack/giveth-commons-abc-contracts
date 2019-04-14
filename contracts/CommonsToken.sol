@@ -11,9 +11,11 @@ import "./BondingCurveToken.sol";
  */
 contract CommonsToken is BondingCurveToken {
 
-  // PreHatchContribution keeps track of the contribution of a hatcher during the hatchin phase:
-  // paidExternal: the amount paid, denominated in external currency
-  // Each contribution also tracks the percentage of tokens that was unlocked.
+  /**PreHatchContribution keeps track of the contribution of a hatcher during the hatchin phase:
+      paidExternal: the amount contributed during the hatching phase, denominated in external currency
+      lockedInternal: paidExternal / p0 = the amount of internal tokens represented by paidExternal.
+        These tokens are unlocked post-hatch according to a vesting policy. Post hatch, we decrease lockedInternal to 0
+  */
   struct PreHatchContribution {
     uint256 paidExternal;
     uint256 lockedInternal;
@@ -21,23 +23,22 @@ contract CommonsToken is BondingCurveToken {
 
   // --- CONSTANTS: ---
 
-  // The denominator of each contribuition.
-  // All contributions are measuted in ppm (parts per million).
+  // Helper to represent fractions => 100% = 1000000, 1% = 10000
   uint256 constant DENOMINATOR_PPM = 1000000;
 
   // --- STORAGE: ---
 
-  // External (reserve) token contract.
+  // External token contract (Stablecurrency e.g. DAI).
   ERC20 public externalToken;
 
   // Address of the funding pool contract.
   address public fundingPool;
 
   // Curve parameters:
-  uint256 public theta;
-  uint256 public p0;
-  uint256 public initialRaise;
-  uint256 public friction;
+  uint256 public theta; // fraction (in PPM) of the contributed amount that goes to the funding pool
+  uint256 public p0; // price (in externalToken) for which people can purchase the internal token during the hathing phase
+  uint256 public initialRaise; // the amount of external tokens that must be contributed during the hatching phase to go post-hatching
+  uint256 public friction; // the fraction (in PPM) that goes to the funding pool when internal tokens are burned
 
   // Minimal EXTERNAL token contribution:
   uint256 public minExternalContribution;
@@ -45,13 +46,13 @@ contract CommonsToken is BondingCurveToken {
   // Total amount of EXTERNAL tokens raised:
   uint256 public raisedExternal;
 
-  // Total amount of unlocked INTERNAL tokens.
+  // Total amount of INTERNAL tokens which (can + are) unlocked.
   uint256 private unlockedInternal;
 
   // Curve state (has it been hatched?).
   bool public isHatched;
 
-  // Time by which the curve must be hatched.
+  // Time (in seconds) by which the curve must be hatched since initialization.
   uint256 public hatchDeadline;
 
   // Mapping of hatchers to contributions.
@@ -98,64 +99,19 @@ contract CommonsToken is BondingCurveToken {
     require(expired, "Curve hatch time has expired");
     _;
   }
-
-  // --- INTERNAL FUNCTIONS: ---
-
-  // function _ppmToPercent(uint256 _val)
-  //   internal
-  //   pure
-  //   returns (uint256 resultPPM)
-  // {
-  //   return _val / DENOMINATOR_PPM;
-  // }
-
-  // Try and pull the given amount of reserve token into the contract balance.
-  // Reverts if there is no approval.
-  function _pullExternalTokens(uint256 _amount)
-    internal
-  {
-    externalToken.transferFrom(msg.sender, address(this), _amount);
-  }
-
-  // End the hatching phase of the curve.
-  // Allow the fundingPool to pull theta times the balance into their control.
-  // NOTE: 1 - theta is reserve.
-  function _endHatchPhase()
-    internal
-  {
-    uint256 amountFundingPool = ((initialRaise / p0) * theta ) / DENOMINATOR_PPM;
-    uint256 amountReserve = (initialRaise / p0) * (DENOMINATOR_PPM - theta) / DENOMINATOR_PPM;
-
-    // _transfer(address(this), fundingPool, amount);
-
-    // Mint INTERNAL tokens to the funding pool:
-    _mint(fundingPool, amountFundingPool);
-
-    // Mint INTERNAL tokens to the reserve:
-    _mint(address(this), amountReserve);
-
-    // End the hatching phase.
-    isHatched = true;
-  }
-
-  // We mint to contributor account and lock the tokens.
-  // Theoretically, the price is increasing (up to P1),
-  // but since we are in the hatching phase, the actual price will stay P0.
-  // The contract will hold the locked tokens.
-  function _mintInternalAndLock(
-    address _adr,
-    uint256 _amount
-  )
-    internal
-  {
-    // Increase the amount paid in EXTERNAL tokens.
-    initialContributions[_adr].paidExternal += _amount;
-
-    // Lock the INTERNAL tokens, total is EXTERNAL amount * price of internal token during the raise.
-    initialContributions[_adr].lockedInternal += _amount * p0;
-  }
-
-  // Constructor.
+  /*
+  * @notice initializes the contract
+  * @param _externalToken the address of the externalToken ERC20 smart contract
+  * @param _reserveRatio (in PPM) which get's used in the BancorFormula contract as the connectorWeight
+  * @param _gasPrice we need to set this such that everybody pays an equal amount of gas and we protect against front-running the bonding curve
+  * @param _theta (in PPM) which is the percentage of worth in internal tokens of the contribution in externalTokens that get's minted to the funding pool once the hatch phase ends
+  * @param _p0 the price denominated in external token of one internal token (i.e. if P0 is 10 => if you contribute 100 external tokens you get 10 internal tokens DURING the hatch phase)
+  * @param _initialRaise which is the amount of external tokens that must be contributed during the hatching phase to go post-hatching phase
+  * @param _fundingPool the address of the fundingPool (can be an organization of a DAO). The fundingPool get's access to the theta * ( internal tokens worth of external tokens ) when the hatch phase ends
+  * @param _friction the fraction (in PPM) that goes to the funding pool when internal tokens are burned (post-hatch)
+  * @param _duration time (in seconds) by which the curve must be hatched since calling this constructor.
+  * @param _minExternalContribution the minimum amount of external tokens that should be contributed by a hatcher
+  */ 
   constructor(
     address _externalToken,
     uint32 _reserveRatio,
@@ -171,6 +127,7 @@ contract CommonsToken is BondingCurveToken {
     public
     mustBeNonZeroAdr(_externalToken)
     mustBeNonZeroAdr(_fundingPool)
+    mustBeInPPM(_reserveRatio)
     mustBeInPPM(_theta)
     mustBeInPPM(_friction)
     BondingCurveToken(_reserveRatio, _gasPrice)
@@ -302,5 +259,53 @@ contract CommonsToken is BondingCurveToken {
     returns(uint256)
   {
     return externalToken.balanceOf(address(this));
+  }
+
+  // --- INTERNAL FUNCTIONS: ---
+
+  // Try and pull the given amount of reserve token into the contract balance.
+  // Reverts if there is no approval.
+  function _pullExternalTokens(uint256 _amount)
+    internal
+  {
+    externalToken.transferFrom(msg.sender, address(this), _amount);
+  }
+
+  // End the hatching phase of the curve.
+  // Allow the fundingPool to pull theta times the balance into their control.
+  // NOTE: 1 - theta is reserve.
+  function _endHatchPhase()
+    internal
+  {
+    uint256 amountFundingPool = ((initialRaise / p0) * theta ) / DENOMINATOR_PPM;
+    uint256 amountReserve = (initialRaise / p0) * (DENOMINATOR_PPM - theta) / DENOMINATOR_PPM;
+
+    // _transfer(address(this), fundingPool, amount);
+
+    // Mint INTERNAL tokens to the funding pool:
+    _mint(fundingPool, amountFundingPool);
+
+    // Mint INTERNAL tokens to the reserve:
+    _mint(address(this), amountReserve);
+
+    // End the hatching phase.
+    isHatched = true;
+  }
+
+  // We mint to contributor account and lock the tokens.
+  // Theoretically, the price is increasing (up to P1),
+  // but since we are in the hatching phase, the actual price will stay P0.
+  // The contract will hold the locked tokens.
+  function _mintInternalAndLock(
+    address _adr,
+    uint256 _amount
+  )
+    internal
+  {
+    // Increase the amount paid in EXTERNAL tokens.
+    initialContributions[_adr].paidExternal += _amount;
+
+    // Lock the INTERNAL tokens, total is EXTERNAL amount * price of internal token during the raise.
+    initialContributions[_adr].lockedInternal += _amount * p0;
   }
 }

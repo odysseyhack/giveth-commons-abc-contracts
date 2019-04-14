@@ -20,8 +20,8 @@ module.exports = async function(deployer, networks, accounts) {
   await deployer.deploy(FundingPoolMock);
   FundingPoolMockInstance = await FundingPoolMock.deployed();
 
-  await deployer.deploy(ReserveTokenMock, accounts[0]);
-  ReserveTokenMockInstance = await ReserveTokenMock.deployed();
+  await deployer.deploy(ExternalTokenMock, accounts[0]);
+  ExternalTokenMockInstance = await ExternalTokenMock.deployed();
 
   await deployer.deploy(CommonsToken,
     ExternalTokenMock.address, // _externalToken
@@ -38,5 +38,5 @@ module.exports = async function(deployer, networks, accounts) {
   );
 
   // needed for demonstration purposes => to show we can purchase tokens during the hatchin phase
-  await ExternalTokenMock.mint(accounts[0], 100000, {from: accounts[0]})
+  await ExternalTokenMockInstance.mint(accounts[0], 100000, {from: accounts[0]})
 };

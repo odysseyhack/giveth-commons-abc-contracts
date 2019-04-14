@@ -150,7 +150,7 @@ contract("CommonsToken", ([reserveTokenMinter, contractCreator, hatcherOne, hatc
     describe("When the sender is the fundingPool", function() {
       describe("When we have not yet allocated all the initial funds", function() {
         describe("When we don't allocate all the initial funds", function() {
-          const toAllocate
+          //const toAllocate
           //totalUnlocked increases to less than 100%
         })
         describe("When we allocate all the initial funds", function() {
