@@ -114,7 +114,7 @@ contract("CommonsToken", ([reserveTokenMinter, contractCreator, hatcherOne, hatc
           })
 
           it("Should have minted the correct amount to the fundingPool", async function() {
-            let internalTokensInFundingPool = await this.commonsToken.balanceOf(this.fundingPool.address)
+            let internalTokensInFundingPool = await this.commonsToken.balanceOf(this.fundingPool.address);
             assert.equal(internalTokensInFundingPool, (initialRaise / p0 ) * (theta  / DENOMINATOR_PPM));
           })
 

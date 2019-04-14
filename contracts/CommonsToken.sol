@@ -4,6 +4,7 @@ import "./BondingCurveToken.sol";
 
 contract CommonsToken is BondingCurveToken {
 
+  event Log(uint256 test);
   // --- STRUCT DELCARATIONS: ---
 
   // PreHatchContribution is a contribution in the curve hatching phase.
@@ -118,13 +119,14 @@ contract CommonsToken is BondingCurveToken {
   function _endHatchPhase()
     internal
   {
-    uint256 amountFundingPool = (initialRaise / p0 ) * (theta / DENOMINATOR_PPM);
-    uint256 amountReserve = (initialRaise / p0 ) * ((1-theta) / DENOMINATOR_PPM);
+    uint256 amountFundingPool = ((initialRaise / p0 ) * theta ) / DENOMINATOR_PPM;
+    uint256 amountReserve = ((initialRaise / p0 ) * 1-theta) / DENOMINATOR_PPM;
 
+    emit Log(amountFundingPool);
     // _transfer(address(this), fundingPool, amount);
 
     // Mint INTERNAL tokens to the funding pool:
-    _mint(fundingPool, 99999);
+    _mint(fundingPool, amountFundingPool);
 
     // Mint INTERNAL tokens to the reserve:
     _mint(address(this), amountReserve);
