@@ -6,7 +6,7 @@ const FundingPoolMock = artifacts.require("FundingPoolMock.sol");
 const ReserveTokenMock = artifacts.require("./contracts/vendor/ERC20/ERC20Mintable.sol");
 
 const DENOMINATOR_PPM = 1000000;
-contract("CommonsToken", ([reserveTokenMinter, contractCreator, hatcherOne, hatcherTwo, lateInvestor]) => {
+contract("CommonsToken", ([externalTokenMinter, contractCreator, hatcherOne, hatcherTwo, lateInvestor]) => {
   const reserveRatio = 142857; // kappa ~ 6
   const theta = 350000; // 35% in ppm
   const p0 =  1;
@@ -18,9 +18,9 @@ contract("CommonsToken", ([reserveTokenMinter, contractCreator, hatcherOne, hatc
 
   beforeEach(async function() {
     this.fundingPool = await FundingPoolMock.new();
-    this.reserveToken = await ReserveTokenMock.new(reserveTokenMinter);
+    this.externalToken = await ReserveTokenMock.new(externalTokenMinter);
     this.commonsToken = await CommonsToken.new(
-      this.reserveToken.address,
+      this.externalToken.address,
       reserveRatio,
       gasPrice,
       theta,
@@ -32,8 +32,8 @@ contract("CommonsToken", ([reserveTokenMinter, contractCreator, hatcherOne, hatc
       minimalContribution,
       { gas: 10000000 }
     );
-    await this.reserveToken.mint(hatcherOne, 1000000);
-    await this.reserveToken.mint(hatcherTwo, 1000000);
+    await this.externalToken.mint(hatcherOne, 1000000);
+    await this.externalToken.mint(hatcherTwo, 1000000);
   })
 
   describe('hatchContribute', function () {
@@ -45,7 +45,7 @@ contract("CommonsToken", ([reserveTokenMinter, contractCreator, hatcherOne, hatc
             describe('When the commonToken can pull the external token', function() {
               beforeEach(async function() {
                 // problem. The msg.sender is the smart contract.
-                await this.reserveToken.approve(this.commonsToken.address, amountToFundExtern, {from: hatcherOne});
+                await this.externalToken.approve(this.commonsToken.address, amountToFundExtern, {from: hatcherOne});
                 await this.commonsToken.hatchContribute(amountToFundExtern, {from: hatcherOne});
               })
 
@@ -55,7 +55,7 @@ contract("CommonsToken", ([reserveTokenMinter, contractCreator, hatcherOne, hatc
               })
 
               it("Should have allocated the external tokens to the bonding curve", async function() {
-                let externalTokensOwned = await this.reserveToken.balanceOf(this.commonsToken.address);
+                let externalTokensOwned = await this.externalToken.balanceOf(this.commonsToken.address);
                 assert.equal(externalTokensOwned, amountToFundExtern);
               })
 
@@ -93,7 +93,7 @@ contract("CommonsToken", ([reserveTokenMinter, contractCreator, hatcherOne, hatc
         describe("When the contribution reaches over the initial raise", function() {
           const amountToFundExtern = 400000;
           beforeEach(async function() {
-            await this.reserveToken.approve(this.commonsToken.address, amountToFundExtern, {from: hatcherOne});
+            await this.externalToken.approve(this.commonsToken.address, amountToFundExtern, {from: hatcherOne});
             await this.commonsToken.hatchContribute(amountToFundExtern, {from: hatcherOne});
           })
 
@@ -103,8 +103,9 @@ contract("CommonsToken", ([reserveTokenMinter, contractCreator, hatcherOne, hatc
           })
 
           it("Should have allocated the external tokens to the bonding curve", async function() {
-            let externalTokensOwned = await this.reserveToken.balanceOf(this.commonsToken.address);
-            assert.equal(externalTokensOwned, initialRaise);
+            let expectedAmountOfExternalTokens = (DENOMINATOR_PPM - theta) * initialRaise / DENOMINATOR_PPM
+            let externalTokensOwned = await this.externalToken.balanceOf(this.commonsToken.address);
+            assert.equal(externalTokensOwned, expectedAmountOfExternalTokens);
           })
 
           it("Should have set the initial external contributions for the hatcher", async function() {
@@ -113,18 +114,19 @@ contract("CommonsToken", ([reserveTokenMinter, contractCreator, hatcherOne, hatc
             assert.equal(paidExternal, initialRaise);
           })
 
-          it("Should have minted the correct amount to the fundingPool", async function() {
-            let internalTokensInFundingPool = await this.commonsToken.balanceOf(this.fundingPool.address);
-            assert.equal(internalTokensInFundingPool, (initialRaise / p0 ) * (theta  / DENOMINATOR_PPM));
+          it("Should have send the correct amount of external tokens to the fundingPool", async function() {
+
+            let externalTokensInFundingPool = await this.externalToken.balanceOf(this.fundingPool.address);
+            assert.equal(externalTokensInFundingPool, initialRaise * theta  / DENOMINATOR_PPM);
           })
 
-          it("Should have minted the correct amount to the reserve", async function() {
-            let internalTokensReserve = await this.commonsToken.balanceOf(this.commonsToken.address);
-            assert.equal(internalTokensInFundingPool, (initialRaise / p0 ) * (1 - (theta  / DENOMINATOR_PPM)));
+          it("Should have minted the correct amount to the bonding curve contract", async function() {
+            let internalTokensInBondingCurve = await this.commonsToken.balanceOf(this.commonsToken.address);
+            assert.equal(internalTokensInBondingCurve, (initialRaise / p0 ) * (1 - (theta  / DENOMINATOR_PPM)));
           })
 
           it("Should have ended the hatching phase", async function() {
-            let isHatched = await this.isHatched();
+            let isHatched = await this.commonsToken.isHatched();
             assert.isTrue(isHatched);
           })
         })
@@ -137,7 +139,7 @@ contract("CommonsToken", ([reserveTokenMinter, contractCreator, hatcherOne, hatc
       const amountToFundExtern = 400000;
       beforeEach(async function() {
         // problem. The msg.sender is the smart contract.
-        await this.reserveToken.approve(this.commonsToken.address, amountToFundExtern, {from: hatcherOne});
+        await this.externalToken.approve(this.commonsToken.address, amountToFundExtern, {from: hatcherOne});
         await this.commonsToken.hatchContribute(amountToFundExtern, {from: hatcherOne});
       })
       it('reverts', async function() {

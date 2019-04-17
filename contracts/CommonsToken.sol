@@ -111,7 +111,7 @@ contract CommonsToken is BondingCurveToken {
   * @param _friction the fraction (in PPM) that goes to the funding pool when internal tokens are burned (post-hatch)
   * @param _duration time (in seconds) by which the curve must be hatched since calling this constructor.
   * @param _minExternalContribution the minimum amount of external tokens that should be contributed by a hatcher
-  */ 
+  */
   constructor(
     address _externalToken,
     uint32 _reserveRatio,
@@ -142,29 +142,6 @@ contract CommonsToken is BondingCurveToken {
     minExternalContribution = _minExternalContribution;
 
     externalToken = ERC20(_externalToken);
-  }
-
-  /**
-   * @dev Mint tokens
-   *
-   * @param amount Amount of tokens to deposit
-   */
-  function _curvedMint(uint256 amount) internal returns (uint256) {
-    require(externalToken.transferFrom(msg.sender, address(this), amount));
-    super._curvedMint(amount);
-  }
-
-  /**
-   * @dev Burn tokens
-   *
-   * @param amount Amount of tokens to burn
-   */
-  function _curvedBurn(uint256 amount) internal returns (uint256) {
-    uint256 reimbursement = super._curvedBurn(amount);
-    uint256 transferable = (1 - (friction / DENOMINATOR_PPM) * reimbursement);
-    externalToken.transfer(msg.sender, transferable);
-    externalToken.transfer(fundingPool, reimbursement - transferable);
-    return reimbursement;
   }
 
   // --- PUBLIC FUNCTIONS: ---
@@ -277,16 +254,16 @@ contract CommonsToken is BondingCurveToken {
   function _endHatchPhase()
     internal
   {
-    uint256 amountFundingPool = ((initialRaise / p0) * theta ) / DENOMINATOR_PPM;
-    uint256 amountReserve = (initialRaise / p0) * (DENOMINATOR_PPM - theta) / DENOMINATOR_PPM;
+    uint256 amountFundingPoolExternal = ((initialRaise) * theta ) / DENOMINATOR_PPM; // denominated in external
+    uint256 amountReserveInternal = (initialRaise / p0) * (DENOMINATOR_PPM - theta) / DENOMINATOR_PPM; // denominated in internal
 
     // _transfer(address(this), fundingPool, amount);
 
-    // Mint INTERNAL tokens to the funding pool:
-    _mint(fundingPool, amountFundingPool);
+    // transfer external tokens to the funding pool:
+    externalToken.transfer(fundingPool, amountFundingPoolExternal);
 
     // Mint INTERNAL tokens to the reserve:
-    _mint(address(this), amountReserve);
+    _mint(address(this), amountReserveInternal);
 
     // End the hatching phase.
     isHatched = true;
@@ -307,5 +284,28 @@ contract CommonsToken is BondingCurveToken {
 
     // Lock the INTERNAL tokens, total is EXTERNAL amount * price of internal token during the raise.
     initialContributions[_adr].lockedInternal += _amount * p0;
+  }
+
+  /**
+   * @dev Mint tokens
+   *
+   * @param amount Amount of tokens to deposit
+   */
+  function _curvedMint(uint256 amount) internal returns (uint256) {
+    require(externalToken.transferFrom(msg.sender, address(this), amount));
+    super._curvedMint(amount);
+  }
+
+  /**
+   * @dev Burn tokens
+   *
+   * @param amount Amount of tokens to burn
+   */
+  function _curvedBurn(uint256 amount) internal returns (uint256) {
+    uint256 reimbursement = super._curvedBurn(amount);
+    uint256 transferable = (1 - (friction / DENOMINATOR_PPM) * reimbursement);
+    externalToken.transfer(msg.sender, transferable);
+    externalToken.transfer(fundingPool, reimbursement - transferable);
+    return reimbursement;
   }
 }

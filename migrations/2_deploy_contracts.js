@@ -34,7 +34,7 @@ module.exports = async function(deployer, networks, accounts) {
     friction,                         // _friction
     duration,                         // _duration
     minExternalContibution,           // _minExternalContribution
-    { gas: 10000000 }
+    { gas: 20000000 }
   );
 
   // needed for demonstration purposes => to show we can purchase tokens during the hatchin phase
